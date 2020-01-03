@@ -1,0 +1,8 @@
+print("A")
+print("A")
+print("A")
+print("A")
+print("D")
+print("Hello, World!!")
+print("C")
+print("B")

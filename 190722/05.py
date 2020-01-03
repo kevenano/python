@@ -1,0 +1,13 @@
+#Another py program
+f=open("txt.txt","w")
+print(5>3,file=f)
+print(5<4,file=f)
+msg=input("Enter anything you want:\n")
+print(type(msg),file=f)
+print('\n',msg,file=f)
+#print('%x'%msg,file=f)
+user_name=input('Enter your name:\n')
+user_age =input('And your age:\n')
+print('姓名：',user_name,'年龄：',user_age,file=f)
+#print('姓名：','%x'%user_name,'年龄：','%x'%user_age,file=f)
+f.close()

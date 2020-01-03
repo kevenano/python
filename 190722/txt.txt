@@ -1,0 +1,6 @@
+True
+False
+<class 'str'>
+
+ kkkkkdd
+姓名： sd 年龄： gg

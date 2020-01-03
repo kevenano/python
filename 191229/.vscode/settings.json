@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "stdio.h": "c"
+    },
+    "python.linting.pylintEnabled": false,
+    "python.linting.mypyEnabled": false,
+    "python.linting.enabled": true,
+    "python.pythonPath": "python3",
+    "python.linting.flake8Enabled": true,
+    "python.formatting.provider": "autopep8"
+}
