@@ -70,12 +70,12 @@ def test1():
         mainSoup = bs4.BeautifulSoup(mainHtml, features='lxml')
         work_header = bs4.BeautifulSoup(
             str(mainSoup.select('#work_header')[0]), features='lxml')
-        work_left = bs4.BeautifulSoup(
-            str(work_header.select('#work_left')[0]), features='lxml')
+        # work_left = bs4.BeautifulSoup(
+        #    str(work_header.select('#work_left')[0]), features='lxml')
         work_right = bs4.BeautifulSoup(
             str(work_header.select('#work_right')[0]), features='lxml')
-        work_value = bs4.BeautifulSoup(
-            str(work_left.select('#work_value')[0]), features='lxml')
+        # work_value = bs4.BeautifulSoup(
+        #    str(work_left.select('#work_value')[0]), features='lxml')
 
         # 属性名
         attrName = work_right.find_all('th')
@@ -141,12 +141,12 @@ def test2():
         mainSoup = bs4.BeautifulSoup(mainHtml, features='lxml')
         work_header = bs4.BeautifulSoup(
             str(mainSoup.select('#work_header')[0]), features='lxml')
-        work_left = bs4.BeautifulSoup(
-            str(work_header.select('#work_left')[0]), features='lxml')
+        # work_left = bs4.BeautifulSoup(
+        #    str(work_header.select('#work_left')[0]), features='lxml')
         work_right = bs4.BeautifulSoup(
             str(work_header.select('#work_right')[0]), features='lxml')
-        work_value = bs4.BeautifulSoup(
-            str(work_left.select('#work_value')[0]), features='lxml')
+        # work_value = bs4.BeautifulSoup(
+        #    str(work_left.select('#work_value')[0]), features='lxml')
 
         # 属性名
         attrName = work_right.find_all('th')
