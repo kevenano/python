@@ -134,28 +134,28 @@ def getDown():
     workDic = urlFiel['workDic']
     # 创建住文件夹
     os.makedirs('mainFolder')
-    # 将工作区移入主文件夹
-    os.chdir('mainFolder')
     count = -1
     subFolder = 0
     # 获取下载url 保存在downUrl
     downUrl = {}
     for work in workDic.values():
+        # 重置主工作区
+        os.chdir(workPath+'/mainFolder')
+        # 提示信息头
         print('Deal with '+work['title'])
         print(count+2, 'of', len(workDic))
         # 以40个项目为单位，创建子文件夹
-        # 同时将当前工作目录移至新新创建的子文件夹
         count += 1
         if count % 40 == 0:
             subFolder += 1
             os.makedirs(str(subFolder))
-            os.chdir(str(subFolder))
             if count > 1:
                 # 休息1~2分钟
                 print('Long sleeping...')
                 time.sleep(randint(60, 120))
-
-        # 在子文件夹下创建每件work对应的文件夹
+        # 进入subFolder
+        os.chdir(str(subFolder))
+        # 在子文件夹下创建当前work对应的文件夹
         # 同时将工作区移入
         os.makedirs(work['id']+'_'+work['title'])
         os.chdir(work['id']+'_'+work['title'])
