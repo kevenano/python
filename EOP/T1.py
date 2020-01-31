@@ -12,7 +12,8 @@ Cookie = 'menunew=0-0-0-0; ' +\
     'username=kevenano; ' +\
     'password=qhm2012%40%40%40; ' + \
     'remember=1; ' +\
-    'huiyuan=7f39Vfi514lH9dndqdzF3wpjjvZy1TiC9eReu%2FmI2RXQTumC1OpKxh7MrBE; ' +\
+    'huiyuan=' +\
+    '7f39Vfi514lH9dndqdzF3wpjjvZy1TiC9eReu%2FmI2RXQTumC1OpKxh7MrBE; ' +\
     'FWE_getuser=kevenano; ' +\
     'FWE_getuserid=161673; ' +\
     'login_mima=9161d8bd2056459a0a96f80f2e6a818d; ' +\
@@ -135,17 +136,24 @@ def getDown():
     os.makedirs('mainFolder')
     # 将工作区移入主文件夹
     os.chdir('mainFolder')
-    count = 0
+    count = -1
     subFolder = 0
     # 获取下载url 保存在downUrl
     downUrl = {}
     for work in workDic.values():
+        print('Deal with '+work['title'])
+        print(count+2, 'of', len(workDic))
         # 以40个项目为单位，创建子文件夹
         # 同时将当前工作目录移至新新创建的子文件夹
+        count += 1
         if count % 40 == 0:
             subFolder += 1
             os.makedirs(str(subFolder))
             os.chdir(str(subFolder))
+            if count > 1:
+                # 休息1~2分钟
+                print('Long sleeping...')
+                time.sleep(randint(60, 120))
 
         # 在子文件夹下创建每件work对应的文件夹
         # 同时将工作区移入
@@ -250,33 +258,47 @@ def getDown():
         # TODO: eopm down
         # 创建eopm文件夹 保存eopm资源
         os.makedirs('eopm')
-        eopmHtml = download(url=work['eopm', cookie=Cookie)
+        eopmHtml = download(url=work['eopm'], cookie=Cookie)
         if eopnHtml is None:
-            itemUrl['eopm']= ''
+            itemUrl['eopm'] = ''
         else:
             # 保存html
-            htmlFile= open('eopm/'+work['id']+'.html', 'w')
-            htmlFile.write(eopnHtml)
+            htmlFile = open('eopm/'+work['id']+'.html', 'w')
+            htmlFile.write(eopmHtml)
             htmlFile.close()
             # 提取下载链接
-            eopmSoup= bs4.BeautifulSoup(eopnHtml, 'lxml')
-            urlElem= eopmSoup.find_all('a', attrs={'class': 'btn-success'})
-            eopm= 'https://www.everyonepiano.cn' +\
+            eopmSoup = bs4.BeautifulSoup(eopmHtml, 'lxml')
+            urlElem = eopmSoup.find_all('a', attrs={'class': 'btn-success'})
+            eopm = 'https://www.everyonepiano.cn' +\
                 urlElem[0].get('href')
             # 写入字典
-            itemUrl['eopm']= eopm
+            itemUrl['eopm'] = eopm
 
             # 直接下载
-            eopmRes= download(url=eopm, cookie=Cookie, raw=1)
-            eopmFile= open('eopm/'+work['title']+'.eopm', 'wb')
+            eopmRes = download(url=eopm, cookie=Cookie, raw=1)
+            eopmFile = open('eopm/'+work['title']+'.eopm', 'wb')
             for chunk in eopmRes.iter_content(100000):
                 eopmFile.write(chunk)
             eopmFile.close()
+
+        # 将当前资源的所有下载链接写入字典 downUrl
+        downUrl[work['id']] = itemUrl
+        # 休息3~10秒
+        print('Sleeping...')
+        time.sleep(randint(3, 10))
+
+    # 全部下载完成
+    # 保存下载地址字典变量
+    os.chdir(workPath)
+    downFile = shelve.open('downFile')
+    downFile['downUrl'] = downUrl
+    print('Misiion all accomplish!')
 
 
 # 测试
 if __name__ == '__main__':
     os.chdir(workPath)
+    getDown()
 
 
 # MAIN: https://www.everyonepiano.cn/Music-class12-%E5%8A%A8%E6%BC%AB.html?
