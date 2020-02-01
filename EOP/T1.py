@@ -404,7 +404,7 @@ def downCol(workDic, colNum):
             # 提取下载链接
             midiSoup = bs4.BeautifulSoup(midiHtml, 'lxml')
             urlElem = midiSoup.find_all('a', attrs={'class': 'btn-success'})
-            if len(urlElem) < 1:
+            if len(urlElem) < 1 or urlElem[0].get('href') == '#':
                 # 未找到下载链接
                 itemUrl['midi'] = ''
                 tempCnt.append('midi')
@@ -438,7 +438,7 @@ def downCol(workDic, colNum):
             # 提取下载链接
             eopnSoup = bs4.BeautifulSoup(eopnHtml, 'lxml')
             urlElem = eopnSoup.find_all('a', attrs={'class': 'btn-success'})
-            if len(urlElem) < 1:
+            if len(urlElem) < 1 or urlElem[0].get('href') == '#':
                 itemUrl['eopn'] = ''
                 tempCnt.append('eopn')
             else:
@@ -499,8 +499,8 @@ if __name__ == '__main__':
     print('开始处理:')
     print(time.asctime(time.localtime(time.time())))
     # 设置需要下载的卷
-    startCol = 4
-    endCol = 30
+    startCol = 31
+    endCol = 77
     sepCol = []
     colList = []
     # 创建主文件夹
