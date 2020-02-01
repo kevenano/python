@@ -24,7 +24,7 @@ workPath = '/home/kevenano/Music/EOP'
 
 
 # Html download function
-def download(url, num_retries=3, cookie='', raw=0):
+def download(url, num_retries=3, cookie='', raw=0, timeout=40):
     print('Downloading: ', url)
     headers = {
         'user-agent':
@@ -36,7 +36,7 @@ def download(url, num_retries=3, cookie='', raw=0):
     if cookie != '':
         headers['cookie'] = cookie
     try:
-        resp = requests.get(url, headers=headers)
+        resp = requests.get(url, headers=headers, timeout=timeout)
         html = resp.text
         if resp.status_code >= 400:
             print('Download error: ', resp.text)
@@ -45,6 +45,10 @@ def download(url, num_retries=3, cookie='', raw=0):
                 return download(url, num_retries-1)
     except requests.exceptions.RequestException:
         print('Download error')
+        html = None
+        resp = None
+    except requests.exceptions.Timeout:
+        print('请求超时!')
         html = None
         resp = None
     if raw == 1:
