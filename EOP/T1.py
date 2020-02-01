@@ -44,7 +44,7 @@ def download(url, num_retries=3, cookie='', raw=0, timeout=40):
             if num_retries and 500 <= resp.status_code < 600:
                 return download(url, num_retries-1)
     except requests.exceptions.RequestException:
-        print('Download error')
+        print('Download error!!!')
         html = None
         resp = None
     except requests.exceptions.Timeout:
@@ -133,6 +133,8 @@ def buildUrl():
     print('Page urls saved to urlFile!')
 
 
+'''
+########淘汰#####淘汰######淘汰######淘汰##################
 # 从资源下载页 获取直接资源下载链接 同时下载相应资源
 def getDown():
     # 打开work字典
@@ -300,12 +302,16 @@ def getDown():
     downFile = shelve.open('downFile')
     downFile['downUrl'] = downUrl
     print('Misiion all accomplish!')
+########淘汰######淘汰######淘汰######淘汰#################
+'''
 
 
 # 改进版 下载函数
 # 输入： workDic 包含下载页面链接的字典 colNum 当前处理卷的卷数
 # 返回： downDic 包含直接资源下载链接的字典 failCnt
 def downCol(workDic, colNum):
+    # 记录输入工作目录
+    inDir = os.getcwd()
     # 计数用
     count = 1
     # 获取下载url 保存在downUrl
@@ -320,10 +326,14 @@ def downCol(workDic, colNum):
         tempCnt = []
 
         # 在当前目录下创建该work专属文件夹
-        # 同时将工作区移入
-        os.makedirs(work['id']+'_'+work['title'])
+        # 若已存在 则跳过
+        try:
+            os.makedirs(work['id']+'_'+work['title'])
+        except FileExistsError:
+            print('File already exist!')
+            continue
+        # 将工作区移入卷文件夹
         os.chdir(work['id']+'_'+work['title'])
-
         # 用于暂存的字典
         # 包括 pdfS  pdfN midi eopn
         #     五线谱 简谱
@@ -458,6 +468,8 @@ def downCol(workDic, colNum):
         print(time.asctime(time.localtime(time.time())))
         time.sleep(randint(3, 10))
     # 返回包含下载链接字典 以及失败项
+    # 同时重置工作目录
+    os.chdir(inDir)
     return downUrl, failCnt
 
 
@@ -510,23 +522,37 @@ if __name__ == '__main__':
                 os.makedirs(str(col+1))
             except FileExistsError:
                 print('Col ', col+1, ' already here!')
-                continue
+                '''
+                # 若卷文件夹下包含 srcFile
+                # 说明该卷已处理完毕
+                # 跳过改卷
+                # 否则继续处理该卷
+                if 'srcFile' in os.listdir(str(col+1)):
+                    continue
+                '''
             # 移动工作区至卷文件夹内
             os.chdir(str(col+1))
             # 处理卷
             downUrl, failCnt = downCol(workList[col], col+1)
             colList.append(col+1)
-            # 保存下载链接
-            srcFile = shelve.open('srcFile')
-            srcFile['downUrl'] = downUrl
-            srcFile.close()
             print('第 ', col+1, '卷', '处理完毕！')
+            # 处理失败项
             if len(failCnt) > 0:
                 print('失败项：')
                 pprint(failCnt)
-            print('下载链接保存在srcFile中')
-            print('沉默1~2分钟...')
-            time.sleep(randint(60, 120))
+                # 保存失败项
+                failFile = shelve.open('failFile')
+                failFile['failCnt'] = failCnt
+                failFile.close()
+                print('失败项保存在failFile中')
+            # 保存下载链接
+            if 'srcFile' not in os.listdir():
+                srcFile = shelve.open('srcFile')
+                srcFile['downUrl'] = downUrl
+                srcFile.close()
+                print('下载链接保存在srcFile中')
+                print('沉默1~2分钟...')
+                time.sleep(randint(60, 120))
     else:
         for col in sepCol:
             print('正在处理第 ', col, '卷', '...')
@@ -537,23 +563,37 @@ if __name__ == '__main__':
                 os.makedirs(str(col))
             except FileExistsError:
                 print('Col ', col, ' already here!')
-                continue
+                '''
+                # 若卷文件夹下包含 srcFile
+                # 说明该卷已处理完毕
+                # 跳过改卷
+                # 否则继续处理该卷
+                if 'srcFile' in os.listdir(str(col)):
+                    continue
+                '''
             # 移动工作区至卷文件夹内
             os.chdir(str(col))
             # 处理卷
             downUrl, failCnt = downCol(workList[col-1], col)
             colList.append(col)
-            # 保存下载链接
-            srcFile = shelve.open('srcFile')
-            srcFile['downUrl'] = downUrl
-            srcFile.close()
             print('第 ', col, '卷', '处理完毕！')
+            # 处理失败项
             if len(failCnt) > 0:
                 print('失败项：')
                 pprint(failCnt)
-            print('下载链接保存在srcFile中')
-            print('沉默1~2分钟...')
-            time.sleep(randint(60, 120))
+                # 保存失败项
+                failFile = shelve.open('failFile')
+                failFile['failCnt'] = failCnt
+                failFile.close()
+                print('失败项保存在failFile中')
+            # 保存下载链接
+            if 'srcFile' not in os.listdir():
+                srcFile = shelve.open('srcFile')
+                srcFile['downUrl'] = downUrl
+                srcFile.close()
+                print('下载链接保存在srcFile中')
+                print('沉默1~2分钟...')
+                time.sleep(randint(60, 120))
     print('任务完成！')
     print('总共处理 ', len(colList), '卷')
     print('本次处理的卷:')
