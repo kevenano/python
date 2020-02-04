@@ -8,6 +8,7 @@ import re
 from random import randint
 from pprint import pprint
 import copy
+import openpyxl
 
 Cookie = 'menunew=0-0-0-0; ' +\
     'username=kevenano; ' +\
@@ -20,7 +21,6 @@ Cookie = 'menunew=0-0-0-0; ' +\
     'login_mima=9161d8bd2056459a0a96f80f2e6a818d; ' +\
     'PHPSESSID=75e2ed7a61e14459313010386cb2ecdc; ' +\
     'think_language=en-US'
-workPath = '/home/kevenano/Music/EOP'
 
 
 # Html download function
@@ -57,23 +57,28 @@ def download(url, num_retries=3, cookie='', raw=0, timeout=40):
         return html
 
 
-# 获取关键头
-def getKey(save_html=0):
-    pageCnt = 0
-    pageAll = 230
+# 获取关键头 即 work的ID&Title字段
+# 保存在keyFile中
+# 输入save_html=1 保存页面
+# 输入classUrl 对应类别曲谱分类首页
+# 如：https://www.everyonepiano.cn/Music-class12-动漫.html
+# 关键是为了获得class12 和动漫 两个字段
+# canshu: 按热门排序'clicks' 按最新发布顺序'cn_edittime'
+# pageAll 按排列顺序需要下载的总页数
+def getKey(classUrl, pageStart, pageEnd, canshu='clicks', save_html=1):
+    pageCnt = pageStart
     keys = []
     try:
         os.makedirs('Html')
     except FileExistsError:
         print('Folder already exist!')
-    while pageCnt < pageAll:
+    while pageCnt <= pageEnd:
         # Download & Save Html File
-        pageCnt += 1
         print('Deal with page ', pageCnt)
-        pageUrl = 'https://www.everyonepiano.cn/' +\
-            'Music-class12-?%3F%3F%3F_html%3Fcome=web&p=' +\
+        pageUrl = classUrl + '?come=web&p=' +\
             str(pageCnt) +\
-            '&canshu=clicks&word=&author=&jianpu=&paixu=desc&username='
+            '&canshu=' + canshu +\
+            '&word=&author=&jianpu=&paixu=desc&username='
         pageHtml = download(url=pageUrl, cookie=Cookie)
         if pageHtml is None:
             continue
@@ -88,6 +93,8 @@ def getKey(save_html=0):
             continue
         for i in range(1, len(allElem)):
             keys.append(allElem[i].get('href').replace('/Music-', ''))
+        # 计数+1
+        pageCnt += 1
         # 延时
         print('Sleeping...')
         time.sleep(randint(1, 5))
@@ -102,7 +109,7 @@ def getKey(save_html=0):
 # 构造资源下载页URL字典
 # 字典保存在 urlFile 中 workDic 字典变量中
 #  以id 为索引
-# 包括: pdf midi eopn eopm title id
+# 包括: pdf midi eopn title id
 def buildUrl():
     # 获取keys
     keyFile = shelve.open('keyFile')
@@ -131,179 +138,6 @@ def buildUrl():
     urlFile['workDic'] = workDic
     urlFile.close()
     print('Page urls saved to urlFile!')
-
-
-'''
-########淘汰#####淘汰######淘汰######淘汰##################
-# 从资源下载页 获取直接资源下载链接 同时下载相应资源
-def getDown():
-    # 打开work字典
-    urlFiel = shelve.open('urlFile')
-    workDic = urlFiel['workDic']
-    urlFiel.close()
-    # 创建住文件夹
-    os.makedirs('mainFolder')
-    count = -1
-    subFolder = 0
-    # 获取下载url 保存在downUrl
-    downUrl = {}
-    for work in workDic.values():
-        # 重置主工作区
-        os.chdir(workPath+'/mainFolder')
-        # 提示信息头
-        print('Deal with '+work['title'])
-        print(count+2, 'of', len(workDic))
-        # 以40个项目为单位，创建子文件夹
-        count += 1
-        if count % 40 == 0:
-            subFolder += 1
-            os.makedirs(str(subFolder))
-            if count > 1:
-                # 休息1~2分钟
-                print('Long sleeping...')
-                time.sleep(randint(60, 120))
-        # 进入subFolder
-        os.chdir(str(subFolder))
-        # 在子文件夹下创建当前work对应的文件夹
-        # 同时将工作区移入
-        os.makedirs(work['id']+'_'+work['title'])
-        os.chdir(work['id']+'_'+work['title'])
-
-        # 用于暂存的字典
-        # 包括 pdfS  pdfN midi eopn eopm
-        #     五线谱 简谱
-        itemUrl = {}
-
-        # TODO: pdf down
-        # 创建pdf文件夹 保存pdf相关资源
-        os.makedirs('pdf')
-        pdfHtml = download(url=work['pdf'], cookie=Cookie)
-        if pdfHtml is None:
-            # 若网页为空 设置对应下载链接为空
-            itemUrl['pdfS'] = ''
-            itemUrl['pdfN'] = ''
-        else:
-            # 保存网页
-            htmlFile = open('pdf/'+work['id']+'.html', 'w')
-            htmlFile.write(pdfHtml)
-            htmlFile.close()
-            # 提取下载链接
-            pdfSoup = bs4.BeautifulSoup(pdfHtml, 'lxml')
-            urlElem = pdfSoup.find_all('a', attrs={'class': 'btn-success'})
-            pdfS = 'https://www.everyonepiano.cn' +\
-                urlElem[0].get('href')
-            pdfN = 'https://www.everyonepiano.cn' +\
-                urlElem[1].get('href')
-            # 将链接存入字典
-            itemUrl['pdfS'] = pdfS
-            itemUrl['pdfN'] = pdfN
-
-            # 直接下载
-            # 五线谱
-            pdfSRes = download(url=pdfS, cookie=Cookie, raw=1)
-            pdfSFile = open('pdf/'+work['title']+'-五线谱'+'.pdf', 'wb')
-            for chunk in pdfSRes.iter_content(100000):
-                pdfSFile.write(chunk)
-            pdfSFile.close()
-            # 简谱
-            pdfNRes = download(url=pdfN, cookie=Cookie, raw=1)
-            pdfNFile = open('pdf/'+work['title']+'-简谱'+'.pdf', 'wb')
-            for chunk in pdfNRes.iter_content(100000):
-                pdfNFile.write(chunk)
-            pdfNFile.close()
-
-        # TODO: midi down
-        # 创建midi文件夹 保存midi资源
-        os.makedirs('midi')
-        midiHtml = download(url=work['midi'], cookie=Cookie)
-        if midiHtml is None:
-            itemUrl['midi'] = ''
-        else:
-            # 保存html
-            htmlFile = open('midi/'+work['id']+'.html', 'w')
-            htmlFile.write(midiHtml)
-            htmlFile.close()
-            # 提取下载链接
-            midiSoup = bs4.BeautifulSoup(midiHtml, 'lxml')
-            urlElem = midiSoup.find_all('a', attrs={'class': 'btn-success'})
-            midi = 'https://www.everyonepiano.cn' +\
-                urlElem[0].get('href')
-            # 写入字典
-            itemUrl['midi'] = midi
-
-            # 直接下载
-            midiRes = download(url=midi, cookie=Cookie, raw=1)
-            midiFile = open('midi/'+work['title']+'.mid', 'wb')
-            for chunk in midiRes.iter_content(100000):
-                midiFile.write(chunk)
-            midiFile.close()
-
-        # TODO: eopn down
-        # 创建eopn文件夹 保存eopn资源
-        os.makedirs('eopn')
-        eopnHtml = download(url=work['eopn'], cookie=Cookie)
-        if eopnHtml is None:
-            itemUrl['eopn'] = ''
-        else:
-            # 保存html
-            htmlFile = open('eopn/'+work['id']+'.html', 'w')
-            htmlFile.write(eopnHtml)
-            htmlFile.close()
-            # 提取下载链接
-            eopnSoup = bs4.BeautifulSoup(eopnHtml, 'lxml')
-            urlElem = eopnSoup.find_all('a', attrs={'class': 'btn-success'})
-            eopn = 'https://www.everyonepiano.cn' +\
-                urlElem[0].get('href')
-            # 写入字典
-            itemUrl['eopn'] = eopn
-
-            # 直接下载
-            eopnRes = download(url=eopn, cookie=Cookie, raw=1)
-            eopnFile = open('eopn/'+work['title']+'.eopn', 'wb')
-            for chunk in eopnRes.iter_content(100000):
-                eopnFile.write(chunk)
-            eopnFile.close()
-
-        # TODO: eopm down
-        # 创建eopm文件夹 保存eopm资源
-        os.makedirs('eopm')
-        eopmHtml = download(url=work['eopm'], cookie=Cookie)
-        if eopmHtml is None:
-            itemUrl['eopm'] = ''
-        else:
-            # 保存html
-            htmlFile = open('eopm/'+work['id']+'.html', 'w')
-            htmlFile.write(eopmHtml)
-            htmlFile.close()
-            # 提取下载链接
-            eopmSoup = bs4.BeautifulSoup(eopmHtml, 'lxml')
-            urlElem = eopmSoup.find_all('a', attrs={'class': 'btn-success'})
-            eopm = 'https://www.everyonepiano.cn' +\
-                urlElem[0].get('href')
-            # 写入字典
-            itemUrl['eopm'] = eopm
-
-            # 直接下载
-            eopmRes = download(url=eopm, cookie=Cookie, raw=1)
-            eopmFile = open('eopm/'+work['title']+'.eopm', 'wb')
-            for chunk in eopmRes.iter_content(100000):
-                eopmFile.write(chunk)
-            eopmFile.close()
-
-        # 将当前资源的所有下载链接写入字典 downUrl
-        downUrl[work['id']] = itemUrl
-        # 休息3~10秒
-        print('Sleeping...')
-        time.sleep(randint(3, 10))
-
-    # 全部下载完成
-    # 保存下载地址字典变量
-    os.chdir(workPath)
-    downFile = shelve.open('downFile')
-    downFile['downUrl'] = downUrl
-    print('Misiion all accomplish!')
-########淘汰######淘汰######淘汰######淘汰#################
-'''
 
 
 # 改进版 下载函数
@@ -473,9 +307,37 @@ def downCol(workDic, colNum):
     return downUrl, failCnt
 
 
-# 测试
-if __name__ == '__main__':
-    os.chdir(workPath)
+# 创建统计查询表格
+# 根据workDic
+def makExcel(workDic):
+    wb = openpyxl.Workbook()
+    sheet = wb.get_active_sheet()
+    sheet.title = 'EOP_ANIME'
+    # 写第一行 属性标签
+    sheet.cell(row=1, column=1).value = 'Vol'
+    sheet.cell(row=1, column=2).value = 'ID'
+    sheet.cell(row=1, column=3).value = 'Tiltle'
+    # 依次写入
+    cnt = 1
+    vol = 1
+    for work in workDic.values():
+        sheet.cell(row=1+cnt, column=1).value = vol
+        sheet.cell(row=1+cnt, column=2).value = work['id']
+        sheet.cell(row=1+cnt, column=3).value = work['title']
+        if cnt % 30 == 0:
+            vol += 1
+        cnt += 1
+    sheet.freeze_panes = 'B1'
+    wb.save('eopList.xlsx')
+    print('Data saved to eopList.xlsx!')
+
+
+# 下载 & 本地保存策略
+# 先以30为单位分卷
+# 输入可选参数 起始卷 终止卷（包含） 卷列表
+def saveDown(classChoos='mainFolder', startCol=1, endCol=999, sepCol=[]):
+    # 记录入口工作目录
+    inPath = os.getcwd()
     # 打开work字典
     urlFiel = shelve.open('urlFile')
     workDic = urlFiel['workDic']
@@ -498,25 +360,24 @@ if __name__ == '__main__':
     time.sleep(10)
     print('开始处理:')
     print(time.asctime(time.localtime(time.time())))
-    # 设置需要下载的卷
-    startCol = 31
-    endCol = 77
-    sepCol = []
+    # 记录处理了的卷
     colList = []
-    # 创建主文件夹
-    try:
-        os.makedirs('mainFolder')
-    except FileExistsError as FEE:
-        print(str(FEE))
+    # 下载卷数处理
     if startCol < 1:
         startCol = 1
     if endCol > len(workList):
         endCol = len(workList)
+    # 创建主文件夹
+    try:
+        os.makedirs(classChoos)
+    except FileExistsError as FEE:
+        print(str(FEE))
+    # 分两种策略处理
     if len(sepCol) == 0:
         for col in range(startCol-1, endCol):
             print('正在处理第 ', col+1, '卷', '...')
             # 重置主工作区
-            os.chdir(workPath+'/mainFolder')
+            os.chdir(workPath+'/'+classChoos)
             # 创建卷文件夹
             try:
                 os.makedirs(str(col+1))
@@ -556,8 +417,11 @@ if __name__ == '__main__':
     else:
         for col in sepCol:
             print('正在处理第 ', col, '卷', '...')
+            if col < 1 or col > len(workList):
+                print('卷标超出范围!')
+                continue
             # 重置主工作区
-            os.chdir(workPath+'/mainFolder')
+            os.chdir(workPath+'/'+classChoos)
             # 创建卷文件夹
             try:
                 os.makedirs(str(col))
@@ -599,3 +463,74 @@ if __name__ == '__main__':
     print('本次处理的卷:')
     print(colList)
     print(time.asctime(time.localtime(time.time())))
+    # 还原路径
+    os.chdir(inPath)
+
+
+# 全流程
+# 以轻音乐为例
+def main():
+    classUrl = {}
+    classUrl['轻音乐'] = 'https://www.everyonepiano.cn/Music-class16-轻音乐.html'
+    classUrl['流行'] = 'https://www.everyonepiano.cn/Music-class5-流行.html'
+    classUrl['影视'] = 'https://www.everyonepiano.cn/Music-class31-影视.html'
+    classUrl['经典'] = 'https://www.everyonepiano.cn/Music-class11-经典.html'
+    classUrl['动漫'] = 'https://www.everyonepiano.cn/Music-class12-动漫.html'
+    # 获取处理类
+    classChoos = input('输入曲谱类别：')
+    while classChoos not in classUrl:
+        print('没有该类别!')
+        classChoos = input('请重新输入：')
+        if classChoos == 'exit' or classChoos == 'quit':
+            exit()
+    # 获取排序标准
+    print('选择排序方式：')
+    print('0.热门  1. 新发布')
+    canshu = input()
+    if canshu == '0':
+        canshu = 'clicks'
+    else:
+        canshu = 'cn_edittime'
+    # 获取处理页数
+    try:
+        pageStart = int(input('输入处理起始页:'))
+        pageEnd = int(input('输入处理结束页:'))
+    except ValueError:
+        print('输入错误！')
+        print('只处理前10页')
+        pageStart = 1
+        pageEnd = 10
+    # 根据输入信息创建工作目录
+    global workPath
+    workPath = os.getcwd()+'/'+classChoos+'-'+canshu+'-' +\
+        str(pageStart) + 'to'+str(pageEnd)
+    try:
+        os.makedirs(workPath)
+    except FileExistsError:
+        print('Folder already exist!')
+    os.chdir(workPath)
+    # 先检查当前目录是否存在keyFIle
+    if 'keyFile' not in os.listdir():
+        # 按顺序获取每一页中 每一项的关键头 得到keyFile
+        getKey(classUrl=classUrl[classChoos],
+               pageStart=pageStart, pageEnd=pageEnd,
+               canshu=canshu, save_html=1)
+    # 检查urlFile
+    if 'urlFile' not in os.listdir():
+        # 构造资源下载页URL字典 得到urlFile
+        buildUrl()
+    # 下载 & 本地保存策略
+    saveDown(classChoos=classChoos)
+    # 导出查询表
+    urlFiel = shelve.open('urlFile')
+    workDic = urlFiel['workDic']
+    urlFiel.close()
+    makExcel(workDic)
+    # 结束
+    print('END')
+    print(time.asctime(time.localtime(time.time())))
+
+
+# 测试
+if __name__ == '__main__':
+    main()
