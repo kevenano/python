@@ -1,0 +1,10 @@
+https://e-hentai.org/?f_cats=1021&f_search=%E7%84%A1%E9%82%AA%E6%B0%97%E6%BC%A2%E5%8C%96%E7%B5%84&advsearch=1&f_sname=on&f_stags=on&f_sr=on&f_srdd=4&f_spf=&f_spt=
+
+参数分析：
+f_cats      类别
+f_search    搜索字段
+advsearch   高级筛选
+f_sname     Search Gallery Name
+f_stags     Search Gallery Tags
+f_sr        Rating
+f_srdd      Minimum Rating
