@@ -10,6 +10,7 @@ from pprint import pprint
 import copy
 import openpyxl
 import sys
+from hashlib import sha1
 
 sys.setrecursionlimit(1000000)
 
@@ -121,13 +122,17 @@ def getSearch(url, params, startPage, endPage):
         scFile.write(scHtml)
         scFile.close()
         pageCnt += 1
-    print('下载完成！')
+    print('搜索结果页下载完成！')
+    print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
     # 重置工作目录
     os.chdir(inPath)
     return folderPath
 
 
 # 从html中提取每一件的url
+# 保存在dicFile中
+# 以title的SHA1的后8为作为字典的key
+# 包含title url SHA1
 # 输入参数 html所在的文件夹
 def getWorkUrl(htmlFolder):
     # 记录入口工作目录
@@ -136,7 +141,7 @@ def getWorkUrl(htmlFolder):
     os.chdir(htmlFolder)
 
     # 循环处理每一页
-    # 获取title 和 url
+    # 获取title 和 url 计算title的SHA1
     workDic = {}
     workCnt = 1
     htmlList = os.listdir()
@@ -151,7 +156,10 @@ def getWorkUrl(htmlFolder):
             tempDic['url'] = item.find('a').get('href')
             tempDic['title'] = item.find(
                 'div', attrs={'class': 'glink'}).getText()
-            workDic[str(workCnt)] = copy.copy(tempDic)
+            workSHA1 = sha1(tempDic['title'].encode(
+                encoding='UTF-8')).hexdigest()
+            tempDic['SHA1'] = workSHA1
+            workDic[workSHA1[-9:-1]] = copy.copy(tempDic)
             workCnt += 1
 
     # 回到work对应的工作目录保存workDic
@@ -164,9 +172,136 @@ def getWorkUrl(htmlFolder):
     # 重置工作目录
     os.chdir(inPath)
 
+
+# 根据 deWork 获取当前作品的所有图片的下载链接
+# deWork 是包括 title 和 url 的字典
+# 成功返回下载链接列表
+# 失败返回空列表
+def getPicUrl(deWork):
+    # 创建列表 保存作品的picUrl
+    picUrl = []
+    # 下载详情页
+    deUrl = deWork['url']
+    dePage = download(url=deUrl)
+    if dePage is None:
+        print('Fail to download detail page!')
+        return picUrl
+    # 提取第一页的地址
+    deSoup = bs4.BeautifulSoup(dePage, 'lxml')
+    nodeA = deSoup.find('div', attrs={'class': 'gdtm'})
+    iniPageUrl = nodeA.find('a').get('href')
+    # 循环下载每一页并提取图片的下载链接及下一页的地址
+    curPageUrl = ''
+    nextPageUrl = iniPageUrl
+    pageCnt = 0
+    # 循环获取全部
+    while nextPageUrl != curPageUrl:
+        pageCnt += 1
+        print('Deal with page ', pageCnt)
+        curPageUrl = nextPageUrl
+        curPage = download(url=curPageUrl)
+        if curPage is None:
+            print('Fail to download page ', pageCnt)
+            continue
+        curSoup = bs4.BeautifulSoup(curPage, 'lxml')
+        nodeA = curSoup.find('div', attrs={'id': 'i3'})
+        curPicUrl = nodeA.find('img').get('src')
+        nextPageUrl = nodeA.find('a').get('href')
+        picUrl.append(curPicUrl)
+        # 页间延迟
+        time.sleep(randint(1, 3))
+    # 返回下载链接列表
+    return picUrl
+
+
+# 批量获取全部picUrl
+# 保存在picUrl中picUrlDic中
+# 以title SHA1 的后8位为key, url为value
+def getPicUrlS():
+    # 打开dicFile
+    dicFile = shelve.open('dicFile')
+    workDic = dicFile['workDic']
+    dicFile.close()
+    # 循环处理workDic中的全部项
+    picUrlDic = {}
+    cnt = 1
+    for deWork in workDic.values():
+        # 提示头
+        print('Deal with: ', deWork['title'])
+        print(cnt, 'of', len(workDic))
+        print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
+        urlList = getPicUrl(deWork)
+        workSHA1 = sha1(deWork['title'].encode(encoding='UTF-8')).hexdigest()
+        picUrlDic[workSHA1[-9:-1]] = urlList
+        # 一件作品完成提示
+        print('Finish!')
+        print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
+        print('--------------------------------------------' +
+              '--------------------------------------------' +
+              '--------------------------------------------')
+        cnt += 1
+        time.sleep(randint(1, 5))
+    # 保存picUrlDic
+    picUrl = shelve.open('picUrl')
+    picUrl['picUrlDic'] = picUrlDic
+    picUrl.close()
+    # 提示信息
+    print('图片下载链接提取完毕！')
+    print('保存在picUrl中')
+
+
+# 根据picUrl下载图片
+def downWork():
+    # 记录入口工作目录
+    inPath = os.getcwd()
+    # 打开picUrl
+    picUrl = shelve.open('picUrl')
+    picUrlDic = picUrl['picUrlDic']
+    picUrl.close()
+    # 创建mainFolder保存works
+    try:
+        os.makedirs('mainFolder')
+    except FileExistsError:
+        print('MainFolder already exist!')
+    os.chdir('mainFolder')
+    mainPath = os.getcwd()
+    # 以25件work为单位， 创建子文件夹
+    cnt = 0
+    for workId, workUrls in picUrlDic.items():
+        # 提示信息头
+        print('Deal with ', workId)
+        print(cnt+1, 'of', len(picUrlDic))
+        print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
+        # 25
+        if cnt % 25 == 0:
+            os.chdir(mainPath)
+            os.makedirs(str(cnt+1))
+            os.chdir(str(cnt+1))
+        for url in workUrls:
+            rawPic = download(url=url, raw=1, timeout=60)
+            if rawPic is None:
+                print('**')
+                continue
+            picFile = open(os.path.basename(url), 'wb')
+            for chunk in rawPic.iter_content(100000):
+                picFile.write(chunk)
+            picFile.close()
+        # 计数更新
+        cnt += 1
+        # 分割线
+        print('--------------------------------------------' +
+              '--------------------------------------------' +
+              '--------------------------------------------')
+    # 全部下载完毕， 提示信息
+    print('All work finish!')
+    print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
+    # 重置工作区
+    os.chdir(inPath)
+
+
 # 主函数
-
-
+# 注意： 调用该函数会在当前目录建立新的工作目录 workPath
+# 所有文件均保存在新建的工作目录下
 def main():
     # 获取搜索参数
     params = getParam()
@@ -195,9 +330,12 @@ def main():
                            startPage=startPage, endPage=endPage)
     # 从html中提取每一件的url, 保存在字典中
     getWorkUrl(htmlFolder)
+    # 批量获取全部picUrl, 保存在字典中
+    getPicUrlS()
+    # 根据picUrl字典下载图片
+    downWork()
 
 
 # 测试
 if __name__ == '__main__':
-    os.chdir('/home/kevenano/Pictures/EH')
     main()
