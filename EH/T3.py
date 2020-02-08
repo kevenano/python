@@ -1,17 +1,17 @@
-# EＨ 批量采集
-# 方案二
+# EH 批量采集＆更新
+
 import requests
 import bs4
 import os
 import time
 import shelve
-import re
 from random import randint
 from pprint import pprint
 import copy
 import openpyxl
 import sys
 from hashlib import sha1
+from shutil import rmtree
 
 sys.setrecursionlimit(1000000)
 
@@ -130,8 +130,10 @@ def getSearch(url, params, startPage, endPage):
     return folderPath
 
 
-# 从搜索页html中提取每一件的url
-# 保存在dicFile中
+# 从搜索结果页中提取入口url
+# 保留新添加到work于newDic中
+# 并更新workDic
+# newDic 和　workDic 同时保存在dicFile中
 # 以title的SHA1的后8为作为字典的key
 # 包含title url SHA1
 # 输入参数 html所在的文件夹
@@ -142,8 +144,7 @@ def getWorkUrl(htmlFolder):
     os.chdir(htmlFolder)
     # 循环处理每一页
     # 获取title 和 url 计算title的SHA1
-    workDic = {}
-    workCnt = 1
+    newDic = {}
     htmlList = os.listdir()
     for page in htmlList:
         tempDic = {}
@@ -159,39 +160,53 @@ def getWorkUrl(htmlFolder):
             workSHA1 = sha1(tempDic['title'].encode(
                 encoding='UTF-8')).hexdigest()
             tempDic['SHA1'] = workSHA1
-            workDic[workSHA1[-9:-1]] = copy.copy(tempDic)
-            workCnt += 1
-
-    # 回到work对应的工作目录保存workDic
+            newDic[workSHA1[-9:-1]] = copy.copy(tempDic)
+    # 回到主工作目录判断dicFile是否已经存在
     os.chdir(workPath)
+    tempDic = {}
+    if 'dicFile' in os.listdir():
+        # 更新newDic & workDic
+        dicFile = shelve.open('dicFile')
+        workDic = dicFile['workDic']
+        dicFile.close()
+        for k, v in newDic.items():
+            if k not in workDic:
+                tempDic[k] = v
+                workDic[k] = v
+        newDic = copy.copy(tempDic)
+    else:
+        workDic = copy.copy(newDic)
+    # 保存newDic & workDic于dicFile
     dicFile = shelve.open('dicFile')
     dicFile['workDic'] = workDic
+    dicFile['newDic'] = newDic
     dicFile.close()
-    print('Url 提取完毕！')
-    print('保存在dicFile中workDic中')
+    # 提示信息
+    print('入口url 提取完毕！')
+    print('待处理', len(newDic), '项')
     # 重置工作目录
     os.chdir(inPath)
 
 
 # 主下载函数
 # 输入参数： deWork 一件work的字典
-# 返回值：  成功返回１，　否则返回None
+# 返回值：  成功返回１，　否则返回0或-1(当前work已存在)
 def downWork(deWork):
     # 记录入口工作目录
     inPath = os.getcwd()
+    # 下载详情页(相当于测试网络)
+    deUrl = deWork['url']
+    dePage = download(url=deUrl)
+    if dePage is None:
+        print('Fail to download detail page!')
+        return 0
     # 创建该作品的文件夹
     try:
         os.mkdir(deWork['SHA1'][-9:-1])
     except FileExistsError:
         print('Work already exist!')
-        return None
-    os.chdir(deWork['SHA1'])
-    # 下载详情页
-    deUrl = deWork['url']
-    dePage = download(url=deUrl)
-    if dePage is None:
-        print('Fail to download detail page!')
-        return None
+        return -1
+    os.chdir(deWork['SHA1'][-9:-1])
     # 提取第一页的地址
     deSoup = bs4.BeautifulSoup(dePage, 'lxml')
     nodeA = deSoup.find('div', attrs={'class': 'gdtm'})
@@ -231,13 +246,14 @@ def downWork(deWork):
     return 1
 
 
-# 批量下载函数
+# 批量下载函数，根据dicFile 中的newDic 下载
+# 返回失败的work的ID列表
 def downWorkS():
     # 记录入口工作目录
     inPath = os.getcwd()
-    # 打开包含详情页的workDic
+    # 打开newDic
     dicFile = shelve.open('dicFile')
-    workDic = dicFile['workDic']
+    newDic = dicFile['newDic']
     dicFile.close()
     # 创建mainFolder保存works
     try:
@@ -245,12 +261,21 @@ def downWorkS():
     except FileExistsError:
         print('MainFolder already exist!')
     os.chdir('mainFolder')
+    # 再以当前时间戳创建文件夹
+    os.makedirs(str(int(time.time())))
+    os.chdir(str(int(time.time())))
     mainPath = os.getcwd()
     # 循环处理每一件work
     workCnt = 0
     folderCnt = 1
     failCnt = []
-    for work in workDic.values():
+    for work in newDic.values():
+        # 先测试网络
+        res = download(url='https://e-hentai.org')
+        if res is None:
+            print('Fail to connect to e-hentai.org!')
+            failCnt.append(work['SHA1'][-9:-1])
+            continue
         # 25为单位创建子文件夹
         if workCnt % 25 == 0:
             os.chdir(mainPath)
@@ -260,12 +285,13 @@ def downWorkS():
         workCnt += 1
         # 提示信息头
         print('Deal with: ', work['title'])
-        print(work['SHA1'][-9:-1]+'\t', workCnt, 'of', len(workDic))
+        print(work['SHA1'][-9:-1]+'\t', workCnt, 'of', len(newDic))
         print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
         # 下载该作品
         res = downWork(work)
-        if res is None:
-            failCnt.append(work['SHA1'])
+        if res == 0:
+            failCnt.append(work['SHA1'][-9:-1])
+            workCnt -= 1
         # 分割线
         print('--------------------------------------------' +
               '--------------------------------------------' +
@@ -279,12 +305,43 @@ def downWorkS():
     print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
     # 重置工作区
     os.chdir(inPath)
+    # 返回failCnt
+    return failCnt
+
+
+# 创建统计查询表格
+# 根据workDic
+def makExcel(workDic):
+    wb = openpyxl.Workbook()
+    sheet = wb.get_active_sheet()
+    sheet.title = 'EH-LOOKUP'
+    # 写第一行 属性标签
+    sheet.cell(row=1, column=1).value = 'ID'
+    sheet.cell(row=1, column=2).value = 'Title'
+    sheet.cell(row=1, column=3).value = 'SHA1'
+    # 依次写入
+    cnt = 1
+    for work in workDic.values():
+        sheet.cell(row=1+cnt, column=1).value = work['SHA1'][-9:-1]
+        sheet.cell(row=1+cnt, column=2).value = work['title']
+        sheet.cell(row=1+cnt, column=3).value = work['SHA1']
+        cnt += 1
+    sheet.freeze_panes = 'B1'
+    timeSt = str(int(time.time()))
+    wb.save('LOOKUP'+timeSt+'.xlsx')
+    print('List saved to LOOKUP.xlsx!')
 
 
 # 主函数
 # 注意： 调用该函数会在当前目录建立新的工作目录 workPath
 # 所有文件均保存在新建的工作目录下
 def main():
+    # 网路检查
+    print('Checking the internet connection...')
+    res = download(url='https://e-hentai.org')
+    if res is None:
+        print('Fail to connect to e-hentai.org!')
+        exit()
     # 获取搜索参数
     print('设置搜索参数：')
     params = getParam()
@@ -296,12 +353,10 @@ def main():
         print('请重新输入!')
         startPage = int(input('起始页:'))
         endPage = int(input('终止页:'))
-    # 根据输入参数创建文件夹
+    # 根据搜索参数创建主文件夹
     global workPath
     cwPath = os.getcwd()
-    workPath = str(params['f_cats']) + str(params['f_search']) +\
-        '-P'+str(startPage)+'-to'+'-P'+str(endPage)+'-' +\
-        time.strftime('%m-%d-%y', time.localtime())
+    workPath = str(params['f_cats']) + str(params['f_search'])
     workPath = os.path.join(cwPath, workPath)
     try:
         os.makedirs(workPath)
@@ -328,9 +383,24 @@ def main():
     print('--------------------------------------------' +
           '--------------------------------------------' +
           '--------------------------------------------')
-    # 批量下载所有的work
+    # 批量下载所有的work 并删除失败项
     print('批量下载：')
-    downWorkS()
+    failList = downWorkS()
+    if len(failList) > 0:
+        dicFile = shelve.open('dicFile')
+        workDic = dicFile['workDic']
+        for workID in failList:
+            del workDic[workID]
+        dicFile['workDic'] = workDic
+        dicFile.close()
+        del workDic
+    # 根据dicFile创建查询表
+    dicFile = shelve.open('dicFile')
+    workDic = dicFile['workDic']
+    dicFile.close()
+    makExcel(workDic)
+    # 删除搜索页
+    rmtree('scHtml')
 
 
 # 测试
