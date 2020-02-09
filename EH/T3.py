@@ -225,6 +225,8 @@ def downWork(deWork, skip=0):
         curPage = download(url=curPageUrl)
         if curPage is None:
             print('Fail to download page ', pageCnt)
+            os.chdir('..')
+            rmtree(deWork['SHA1'][-9:-1])
             os.chdir(inPath)
             return 0
         curSoup = bs4.BeautifulSoup(curPage, 'lxml')
@@ -238,6 +240,8 @@ def downWork(deWork, skip=0):
             if skip == 1:
                 continue
             else:
+                os.chdir('..')
+                rmtree(deWork['SHA1'][-9:-1])
                 os.chdir(inPath)
                 return 0
         picFile = open(os.path.basename(curPicUrl), 'wb')
