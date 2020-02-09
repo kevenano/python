@@ -298,7 +298,6 @@ def downWorkS():
         res = downWork(work)
         if res == 0:
             failCnt.append(work['SHA1'][-9:-1])
-            workCnt -= 1
         # 分割线
         print('--------------------------------------------' +
               '--------------------------------------------' +
@@ -435,6 +434,7 @@ def downDirect(deUrl):
     deWork['SHA1'] = workSHA1
     deWork['url'] = deUrl
     # 根据deWork 下载work
+    print('Deal with: '+title)
     res = downWork(deWork)
     if res != 1:
         print('Something thing wrong happend while downloading!')
@@ -462,6 +462,7 @@ def excelDown(excelPath):
     deUrl = sheet.cell(row=1+i, column=1).value
     while deUrl is not None:
         i += 1
+        print('Work count:', i)
         tempDic = downDirect(deUrl)
         if tempDic == -1 or tempDic == -2 or tempDic == -3:
             failWork.append(deUrl)
