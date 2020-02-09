@@ -190,8 +190,10 @@ def getWorkUrl(htmlFolder):
 
 # 主下载函数
 # 输入参数： deWork 一件work的字典
+# skip = 1 跳过缺页继续下载
+# skip = 0 一旦遇到缺页 直接返回0
 # 返回值：  成功返回１，　否则返回0或-1(当前work已存在)
-def downWork(deWork):
+def downWork(deWork, skip=0):
     # 记录入口工作目录
     inPath = os.getcwd()
     # 下载详情页(相当于测试网络)
@@ -223,7 +225,8 @@ def downWork(deWork):
         curPage = download(url=curPageUrl)
         if curPage is None:
             print('Fail to download page ', pageCnt)
-            continue
+            os.chdir(inPath)
+            return 0
         curSoup = bs4.BeautifulSoup(curPage, 'lxml')
         nodeA = curSoup.find('div', attrs={'id': 'i3'})
         curPicUrl = nodeA.find('img').get('src')
@@ -232,7 +235,11 @@ def downWork(deWork):
         rawPic = download(url=curPicUrl, raw=1, timeout=60)
         if rawPic is None:
             print('**')
-            continue
+            if skip == 1:
+                continue
+            else:
+                os.chdir(inPath)
+                return 0
         picFile = open(os.path.basename(curPicUrl), 'wb')
         for chunk in rawPic.iter_content(100000):
             picFile.write(chunk)
@@ -332,10 +339,11 @@ def makExcel(workDic):
     print('List saved to LOOKUP.xlsx!')
 
 
-# 主函数
+# 搜索下载
+# 根据搜索关键词下载
 # 注意： 调用该函数会在当前目录建立新的工作目录 workPath
 # 所有文件均保存在新建的工作目录下
-def main():
+def serchDown():
     # 网路检查
     print('Checking the internet connection...')
     res = download(url='https://e-hentai.org')
@@ -403,6 +411,93 @@ def main():
     rmtree('scHtml')
 
 
+# 通过给定详情页url 直接下载
+# 成功 返回deWork 字典
+# 无法下载详情页 返回-1
+# 无法提取title 返回-2
+# 下载失败或缺页 返回-3
+def downDirect(deUrl):
+    # 下载详情页(测试网络)
+    dePage = download(url=deUrl)
+    if dePage is None:
+        print('Fail to download detail page!')
+        return -1
+    # 提取title 并计算SHA1 构造deWork 字典
+    deWork = {}
+    deSoup = bs4.BeautifulSoup(dePage, 'lxml')
+    title = deSoup.find('h1', attrs={'id': 'gn'}).getText()
+    if len(title) == 0:
+        print('Fial to extract title!')
+        return -2
+    deWork['title'] = title
+    workSHA1 = sha1(deWork['title'].encode(
+        encoding='UTF-8')).hexdigest()
+    deWork['SHA1'] = workSHA1
+    deWork['url'] = deUrl
+    # 根据deWork 下载work
+    res = downWork(deWork)
+    if res != 1:
+        print('Something thing wrong happend while downloading!')
+        return -3
+    else:
+        print('Download successful!')
+        return deWork
+
+
+# 从excel中获取详情页url 直接下载
+def excelDown(excelPath):
+    # 记录入口工作目录
+    inPath = os.getcwd()
+    # 打开表格
+    try:
+        wb = openpyxl.load_workbook(excelPath)
+    except FileNotFoundError:
+        print('表格打开失败！')
+        return -1
+    sheet = wb.get_active_sheet()
+    # 获取url 批量下载 记录在workDic中
+    i = 0
+    workDic = {}
+    failWork = []
+    deUrl = sheet.cell(row=1+i, column=1).value
+    while deUrl is not None:
+        i += 1
+        tempDic = downDirect(deUrl)
+        if tempDic == -1 or tempDic == -2 or tempDic == -3:
+            failWork.append(deUrl)
+            continue
+        workDic[tempDic['SHA1'][-9:-1]] = copy.copy(tempDic)
+        deUrl = sheet.cell(row=1+i, column=1).value
+        # 分割线
+        print('--------------------------------------------' +
+              '--------------------------------------------' +
+              '--------------------------------------------')
+        # 延时
+        time.sleep(randint(1, 5))
+    # 制作查询表
+    if len(workDic) > 0:
+        makExcel(workDic)
+        print('All work finish!')
+        if len(failWork) > 0:
+            print('Faild work:')
+            pprint(failWork)
+        print('Look up list saved to LOOKUP.xlsx')
+    # 恢复工作目录
+    os.chdir(inPath)
+
+
 # 测试
 if __name__ == '__main__':
-    main()
+    print('搜索下载 or 直接下载？')
+    choice = input('1.搜索下载  2.直接下载  3.从表格下载\n')
+    if choice == '1':
+        serchDown()
+    elif choice == '2':
+        deUrl = input('请务必输入正确的详情页网址：\n')
+        downDirect(deUrl, skip=1)
+    elif choice == '3':
+        excelPath = input('输入表格路径：\n')
+        excelDown(excelPath)
+    else:
+        print('Invalid input!')
+        exit()
