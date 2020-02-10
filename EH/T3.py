@@ -440,11 +440,13 @@ def downDirect(deUrl):
     # 根据deWork 下载work
     print('Deal with: '+title)
     res = downWork(deWork)
-    if res != 1:
+    if res == 0:
         print('Something thing wrong happend while downloading!')
         return -3
-    else:
+    elif res == 1:
         print('Download successful!')
+        return deWork
+    else:
         return deWork
 
 
@@ -470,6 +472,11 @@ def excelDown(excelPath):
         tempDic = downDirect(deUrl)
         if tempDic == -1 or tempDic == -2 or tempDic == -3:
             failWork.append(deUrl)
+            deUrl = sheet.cell(row=1+i, column=1).value
+            # 分割线
+            print('--------------------------------------------' +
+                  '--------------------------------------------' +
+                  '--------------------------------------------')
             continue
         workDic[tempDic['SHA1'][-9:-1]] = copy.copy(tempDic)
         deUrl = sheet.cell(row=1+i, column=1).value
