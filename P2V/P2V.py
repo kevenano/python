@@ -1,6 +1,5 @@
 import os
 import cv2
-import time
 from pprint import pprint
 import sys
 
@@ -37,7 +36,8 @@ def pic2video(folderPath, videoFPS, width, height):
     fileList = os.listdir(folderPath)
     fileList.sort()
 
-    videoPath = os.path.join(folderPath, str(int(time.time()))+'.mp4')
+    videoPath = os.path.join(os.path.split(folderPath)[
+                             0], os.path.split(folderPath)[1]+'.mp4')
     fourcc = cv2.VideoWriter_fourcc(*"avc1")
     frameSize = (width, height)
     video = cv2.VideoWriter(filename=videoPath, fourcc=fourcc,
