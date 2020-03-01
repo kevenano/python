@@ -2,6 +2,9 @@ import os
 import cv2
 from pprint import pprint
 import sys
+from tqdm import tqdm
+import threading
+import time
 
 
 # 修改图片大小（加黑边）
@@ -32,7 +35,7 @@ def imgResize(image, width, height, color=[0, 0, 0]):
 
 
 # 图片合成视频
-def pic2video(folderPath, videoFPS, width, height):
+def pic2video(folderPath, videoFPS, width, height, noBar=False):
     fileList = os.listdir(folderPath)
     fileList.sort()
 
@@ -44,17 +47,29 @@ def pic2video(folderPath, videoFPS, width, height):
                             fps=videoFPS, frameSize=frameSize)
 
     failList = []
-    for item in fileList:
-        if item.endswith(('png', 'jpg', 'bmp', 'jpeg')):
-            print('Deal with', item)
-            itemPath = os.path.join(folderPath, item)
-            img = cv2.imread(itemPath)
-            if img is None:
-                print('Fail to open the image!')
-                failList.append(item)
-                continue
-            imgRe = imgResize(img, width, height)
-            video.write(imgRe)
+    if noBar is False:
+        pbar = tqdm(fileList)
+        for item in pbar:
+            if item.endswith(('png', 'jpg', 'bmp', 'jpeg')):
+                # 显示进度条
+                pbar.set_description("Processing %s" % item)
+                itemPath = os.path.join(folderPath, item)
+                img = cv2.imread(itemPath)
+                if img is None:
+                    failList.append(item)
+                    continue
+                imgRe = imgResize(img, width, height)
+                video.write(imgRe)
+    else:
+        for item in fileList:
+            if item.endswith(('png', 'jpg', 'bmp', 'jpeg')):
+                itemPath = os.path.join(folderPath, item)
+                img = cv2.imread(itemPath)
+                if img is None:
+                    failList.append(item)
+                    continue
+                imgRe = imgResize(img, width, height)
+                video.write(imgRe)
     video.release()
     return failList, videoPath
 
@@ -76,5 +91,80 @@ def run():
     print('Done!')
 
 
+# 默认处理当前目录下
+def batch(mainFolder=os.getcwd(), videoFPS=2):
+    folderList = os.listdir(mainFolder)
+    pbar = tqdm(folderList)
+    for item in pbar:
+        # 显示进度条
+        pbar.set_description("Processing %s" % item)
+        folderPath = os.path.join(mainFolder, item)
+        # 获取第二张图片的尺寸，作为视频尺寸
+        try:
+            itemList = os.listdir(folderPath)
+        except NotADirectoryError:
+            continue
+        itemList.sort()
+        mItem = itemList[1]
+        mImg = cv2.imread(os.path.join(folderPath, mItem))
+        width = mImg.shape[1]
+        height = mImg.shape[0]
+        # 图片合成视频
+        failList, videoPath = pic2video(folderPath, videoFPS, width, height)
+
+
+# 多线程处理目标函数
+def batchPlus(mainFolder, folderList, videoFPS=2):
+    pbar = tqdm(folderList)
+    for item in pbar:
+        # 显示进度条
+        pbar.set_description("Processing %s" % item)
+        folderPath = os.path.join(mainFolder, item)
+        # 获取第二张图片的尺寸，作为视频尺寸
+        try:
+            itemList = os.listdir(folderPath)
+        except NotADirectoryError:
+            continue
+        itemList.sort()
+        mItem = itemList[1]
+        mImg = cv2.imread(os.path.join(folderPath, mItem))
+        width = mImg.shape[1]
+        height = mImg.shape[0]
+        # 图片合成视频
+        failList, videoPath = pic2video(
+            folderPath, videoFPS, width, height, noBar=False)
+
+
+# 多线程测试 threading方法
+def batchTest(mainFolder=os.getcwd(), videoFPS=2, threads=3):
+    folderList = os.listdir(mainFolder)
+    processingThreads = []
+    tasks = len(folderList)//threads + 1
+    for i in range(0, len(folderList), tasks):
+        processingList = folderList[i:i+tasks]
+        processingThread = threading.Thread(
+            target=batchPlus, args=(mainFolder, processingList, videoFPS))
+        processingThreads.append(processingThread)
+
+    for processingThread in processingThreads:
+        processingThread.start()
+    for processingThread in processingThreads:
+        processingThread.join()
+    print('\n'*(threads))
+    print('Done.')
+
+
 if __name__ == '__main__':
-    run()
+    if len(sys.argv) < 3:
+        print('Usage: python3 P2V.py [mainFolder] [fps] [threads]')
+        exit()
+    mainFolder = sys.argv[1]
+    videoFPS = int(sys.argv[2])
+    threads = int(sys.argv[3])
+    if threads > 5:
+        threads = 5
+
+    startTime = time.time()
+    batchTest(mainFolder, videoFPS, threads)
+    endTime = time.time()
+    print('Time cost:', str(endTime-startTime))
