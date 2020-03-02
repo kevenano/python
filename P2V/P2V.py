@@ -5,6 +5,13 @@ import sys
 from tqdm import tqdm
 import threading
 import time
+import numpy as np
+
+
+# 解决cv2.imread不兼容中文路径的问题
+def cv_imgread(filePath):
+    cv_img = cv2.imdecode(np.fromfile(filePath, dtype=np.uint8), -1)
+    return cv_img
 
 
 # 修改图片大小（加黑边）
@@ -54,7 +61,7 @@ def pic2video(folderPath, videoFPS, width, height, noBar=False):
                 # 显示进度条
                 pbar.set_description("Processing %s" % item)
                 itemPath = os.path.join(folderPath, item)
-                img = cv2.imread(itemPath)
+                img = cv_imgread(itemPath)
                 if img is None:
                     failList.append(item)
                     continue
@@ -64,7 +71,7 @@ def pic2video(folderPath, videoFPS, width, height, noBar=False):
         for item in fileList:
             if item.endswith(('png', 'jpg', 'bmp', 'jpeg')):
                 itemPath = os.path.join(folderPath, item)
-                img = cv2.imread(itemPath)
+                img = cv_imgread(itemPath)
                 if img is None:
                     failList.append(item)
                     continue
@@ -106,7 +113,7 @@ def batch(mainFolder=os.getcwd(), videoFPS=2):
             continue
         itemList.sort()
         mItem = itemList[1]
-        mImg = cv2.imread(os.path.join(folderPath, mItem))
+        mImg = cv_imgread(os.path.join(folderPath, mItem))
         width = mImg.shape[1]
         height = mImg.shape[0]
         # 图片合成视频
@@ -114,7 +121,7 @@ def batch(mainFolder=os.getcwd(), videoFPS=2):
 
 
 # 多线程处理目标函数
-def batchPlus(mainFolder, folderList, videoFPS=2):
+def batchPlus(mainFolder, folderList, videoFPS=2, noBar=True):
     pbar = tqdm(folderList)
     for item in pbar:
         # 显示进度条
@@ -127,27 +134,36 @@ def batchPlus(mainFolder, folderList, videoFPS=2):
             continue
         itemList.sort()
         mItem = itemList[1]
-        mImg = cv2.imread(os.path.join(folderPath, mItem))
+        mItemPath = os.path.join(folderPath, mItem)
+        mImg = cv_imgread(mItemPath)
         width = mImg.shape[1]
         height = mImg.shape[0]
         # 图片合成视频
         failList, videoPath = pic2video(
-            folderPath, videoFPS, width, height, noBar=False)
+            folderPath, videoFPS, width, height, noBar=noBar)
 
 
 # 多线程测试 threading方法
 def batchTest(mainFolder=os.getcwd(), videoFPS=2, threads=3):
+    # 单线程显示子进度条，否则只显示主进度条
+    if threads == 1:
+        noBar = False
+    else:
+        noBar = True
+    # 创建文件夹列表
     folderList = os.listdir(mainFolder)
     processingThreads = []
     tasks = len(folderList)//threads + 1
+    # 根据线程分配任务
     for i in range(0, len(folderList), tasks):
         processingList = folderList[i:i+tasks]
         processingThread = threading.Thread(
-            target=batchPlus, args=(mainFolder, processingList, videoFPS))
+            target=batchPlus, args=(mainFolder, processingList, videoFPS, noBar))
         processingThreads.append(processingThread)
-
+    # 开启任务
     for processingThread in processingThreads:
         processingThread.start()
+    # 等待任务结束
     for processingThread in processingThreads:
         processingThread.join()
     print('\n'*(threads))
@@ -168,3 +184,7 @@ if __name__ == '__main__':
     batchTest(mainFolder, videoFPS, threads)
     endTime = time.time()
     print('Time cost:', str(endTime-startTime))
+    '''
+    mainFolder = "D:\\s"
+    batchTest(mainFolder, 2, 1)
+    '''
