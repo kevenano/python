@@ -1,6 +1,5 @@
 import os
 import cv2
-from pprint import pprint
 import sys
 from tqdm import tqdm
 import threading
@@ -19,7 +18,8 @@ def imgResize(image, width, height, color=[0, 0, 0]):
     top, bottom, left, right = (0, 0, 0, 0)
 
     # 获取图像尺寸
-    h, w, _ = image.shape
+    h = image.shape[0]
+    w = image.shape[1]
 
     # 计算需要添加的像素的大小
     if (w/h) < (width/height):
@@ -79,23 +79,6 @@ def pic2video(folderPath, videoFPS, width, height, noBar=False):
                 video.write(imgRe)
     video.release()
     return failList, videoPath
-
-
-def run():
-    if len(sys.argv) < 5:
-        print('Usage: python3 P2V.py [folder] [fps] [width] [height]')
-        exit()
-    folderPath = sys.argv[1]
-    videoFPS = int(sys.argv[2])
-    width = int(sys.argv[3])
-    height = int(sys.argv[4])
-    failList, videoPath = pic2video(folderPath, videoFPS, width, height)
-    if len(failList) > 0:
-        print('Fiald list:')
-        pprint(failList)
-    print('Output path:')
-    print(videoPath)
-    print('Done!')
 
 
 # 默认处理当前目录下
@@ -158,7 +141,8 @@ def batchTest(mainFolder=os.getcwd(), videoFPS=2, threads=3):
     for i in range(0, len(folderList), tasks):
         processingList = folderList[i:i+tasks]
         processingThread = threading.Thread(
-            target=batchPlus, args=(mainFolder, processingList, videoFPS, noBar))
+            target=batchPlus, args=(
+                mainFolder, processingList, videoFPS, noBar))
         processingThreads.append(processingThread)
     # 开启任务
     for processingThread in processingThreads:
@@ -166,7 +150,7 @@ def batchTest(mainFolder=os.getcwd(), videoFPS=2, threads=3):
     # 等待任务结束
     for processingThread in processingThreads:
         processingThread.join()
-    print('\n'*(threads))
+    print('\n'*(threads - 1))
     print('Done.')
 
 
@@ -184,7 +168,3 @@ if __name__ == '__main__':
     batchTest(mainFolder, videoFPS, threads)
     endTime = time.time()
     print('Time cost:', str(endTime-startTime))
-    '''
-    mainFolder = "D:\\s"
-    batchTest(mainFolder, 2, 1)
-    '''
