@@ -5,12 +5,25 @@ from tqdm import tqdm
 import threading
 import time
 import numpy as np
+# from PIL import Image
 
 
 # 解决cv2.imread不兼容中文路径的问题
 def cv_imgread(filePath):
-    cv_img = cv2.imdecode(np.fromfile(filePath, dtype=np.uint8), -1)
+    cv_img = cv2.imdecode(np.fromfile(filePath, dtype=np.uint8), 1)
+    '''
+    cv_img = cv2.imread(filePath)
+    '''
     return cv_img
+
+
+# 判断是否为支持的图片格式（后缀名方法）
+def isPicture(itemName):
+    sufixList = ('png', 'jpg', 'bmp', 'jpeg')
+    if itemName.lower().endswith(sufixList):
+        return True
+    else:
+        return False
 
 
 # 修改图片大小（加黑边）
@@ -57,7 +70,7 @@ def pic2video(folderPath, videoFPS, width, height, noBar=False):
     if noBar is False:
         pbar = tqdm(fileList)
         for item in pbar:
-            if item.endswith(('png', 'jpg', 'bmp', 'jpeg')):
+            if isPicture(item):
                 # 显示进度条
                 pbar.set_description("Processing %s" % item)
                 itemPath = os.path.join(folderPath, item)
@@ -69,7 +82,7 @@ def pic2video(folderPath, videoFPS, width, height, noBar=False):
                 video.write(imgRe)
     else:
         for item in fileList:
-            if item.endswith(('png', 'jpg', 'bmp', 'jpeg')):
+            if isPicture(item):
                 itemPath = os.path.join(folderPath, item)
                 img = cv_imgread(itemPath)
                 if img is None:
@@ -81,53 +94,52 @@ def pic2video(folderPath, videoFPS, width, height, noBar=False):
     return failList, videoPath
 
 
-# 默认处理当前目录下
-def batch(mainFolder=os.getcwd(), videoFPS=2):
-    folderList = os.listdir(mainFolder)
-    pbar = tqdm(folderList)
-    for item in pbar:
-        # 显示进度条
-        pbar.set_description("Processing %s" % item)
-        folderPath = os.path.join(mainFolder, item)
-        # 获取第二张图片的尺寸，作为视频尺寸
-        try:
-            itemList = os.listdir(folderPath)
-        except NotADirectoryError:
-            continue
-        itemList.sort()
-        mItem = itemList[1]
-        mImg = cv_imgread(os.path.join(folderPath, mItem))
-        width = mImg.shape[1]
-        height = mImg.shape[0]
-        # 图片合成视频
-        failList, videoPath = pic2video(folderPath, videoFPS, width, height)
+# 单目录处理处理
+def singleProcess(folderPath, videoFPS=2, noBar=False):
+    # 获取文件列表
+    try:
+        itemList = os.listdir(folderPath)
+    except NotADirectoryError:
+        return 'Not a folder!'
+    # itemList 排序 去除文件夹 去除不支持的文件
+    itemList.sort()
+    tempList = []
+    for item in itemList:
+        itemPath = os.path.join(folderPath, item)
+        if os.path.isfile(itemPath) and isPicture(item):
+            tempList.append(item)
+    itemList = tempList
+    del tempList
+    # 若符合条件的图片少于5张 返回
+    if len(itemList) < 5:
+        return 'Too little picture!'
+    # 获取第二张图片的尺寸，作为视频尺寸
+    mItem = itemList[1]
+    mItemPath = os.path.join(folderPath, mItem)
+    mImg = cv_imgread(mItemPath)
+    width = mImg.shape[1]
+    height = mImg.shape[0]
+    failList, videoPath = pic2video(
+        folderPath, videoFPS, width, height, noBar=noBar)
+    return 1
 
 
-# 多线程处理目标函数
+# 多文件夹批处理函数 多线程处理目标函数
 def batchPlus(mainFolder, folderList, videoFPS=2, noBar=True):
     pbar = tqdm(folderList)
     for item in pbar:
         # 显示进度条
         pbar.set_description("Processing %s" % item)
         folderPath = os.path.join(mainFolder, item)
-        # 获取第二张图片的尺寸，作为视频尺寸
-        try:
-            itemList = os.listdir(folderPath)
-        except NotADirectoryError:
+        # 检查是否为文件
+        if os.path.isfile(folderPath):
             continue
-        itemList.sort()
-        mItem = itemList[1]
-        mItemPath = os.path.join(folderPath, mItem)
-        mImg = cv_imgread(mItemPath)
-        width = mImg.shape[1]
-        height = mImg.shape[0]
-        # 图片合成视频
-        failList, videoPath = pic2video(
-            folderPath, videoFPS, width, height, noBar=noBar)
+        # 处理item文件夹
+        singleProcess(folderPath, videoFPS, noBar)
 
 
-# 多线程测试 threading方法
-def batchTest(mainFolder=os.getcwd(), videoFPS=2, threads=3):
+# 多线程处理主函数 threading方法
+def batchMain(mainFolder=os.getcwd(), videoFPS=2, threads=3):
     # 单线程显示子进度条，否则只显示主进度条
     if threads == 1:
         noBar = False
@@ -155,16 +167,30 @@ def batchTest(mainFolder=os.getcwd(), videoFPS=2, threads=3):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 3:
-        print('Usage: python3 P2V.py [mainFolder] [fps] [threads]')
+    if len(sys.argv) < 4:
+        print(
+            'Usage: python3 P2V.py [batchFlag] [mainFolder] [fps] [threads]')
         exit()
-    mainFolder = sys.argv[1]
-    videoFPS = int(sys.argv[2])
-    threads = int(sys.argv[3])
+    batchFlag = int(sys.argv[1])
+    mainFolder = sys.argv[2]
+    videoFPS = int(sys.argv[3])
+    threads = int(sys.argv[4])
     if threads > 5:
         threads = 5
-
+    if threads < 1:
+        threads = 1
     startTime = time.time()
-    batchTest(mainFolder, videoFPS, threads)
+    if batchFlag == 1:
+        batchMain(mainFolder, videoFPS, threads)
+    elif batchFlag == 0:
+        singleProcess(mainFolder, videoFPS)
+    else:
+        print('[batchFlag] = 1 for multifolder process')
+        print('[batchFlag] = 0 for singlefolder process')
+        exit()
     endTime = time.time()
     print('Time cost:', str(endTime-startTime))
+    '''
+    mainFolder = '/home/kevenano/Pictures/EH/Single/b9c51820'
+    singleProcess(mainFolder)
+    '''
