@@ -66,91 +66,75 @@ def imgResize(image, width, height, color=[0, 0, 0]):
 
 
 # 图片合成视频
-def pic2video(folderPath, videoFPS, width, height, noBar=False):
-    fileList = os.listdir(folderPath)
-    fileList.sort()
-
-    videoPath = os.path.join(os.path.split(folderPath)[
-                             0], os.path.split(folderPath)[1]+'.mp4')
+def pic2video(outPath, itemList, videoFPS, width, height, noBar=False):
+    videoPath = outPath+'.mp4'
     fourcc = cv2.VideoWriter_fourcc(*"avc1")
     frameSize = (width, height)
     video = cv2.VideoWriter(filename=videoPath, fourcc=fourcc,
                             fps=videoFPS, frameSize=frameSize)
-
     failList = []
     if noBar is False:
-        pbar = tqdm(fileList, ncols=100)
+        pbar = tqdm(itemList, ncols=100)
         for item in pbar:
-            if isPicture(item):
-                # 显示进度条
-                pbar.set_description("Processing %s" % modiStr(item, 20))
-                itemPath = os.path.join(folderPath, item)
-                img = cv_imgread(itemPath)
-                if img is None:
-                    failList.append(item)
-                    continue
-                imgRe = imgResize(img, width, height)
-                video.write(imgRe)
+            # 显示进度条
+            pbar.set_description("Processing %s" %
+                                 modiStr(os.path.split(item)[-1], 20))
+            img = cv_imgread(item)
+            if img is None:
+                failList.append(item)
+                continue
+            imgRe = imgResize(img, width, height)
+            video.write(imgRe)
     else:
-        for item in fileList:
-            if isPicture(item):
-                itemPath = os.path.join(folderPath, item)
-                img = cv_imgread(itemPath)
-                if img is None:
-                    failList.append(item)
-                    continue
-                imgRe = imgResize(img, width, height)
-                video.write(imgRe)
+        for item in itemList:
+            img = cv_imgread(item)
+            if img is None:
+                failList.append(item)
+                continue
+            imgRe = imgResize(img, width, height)
+            video.write(imgRe)
     video.release()
     return failList, videoPath
 
 
-# 单目录处理处理
+# 单目录处理
 def singleProcess(folderPath, videoFPS=2, noBar=False):
-    # 获取文件列表
-    try:
-        itemList = os.listdir(folderPath)
-    except NotADirectoryError:
+    if os.path.isdir(folderPath) is False:
         return 'Not a folder!'
-    # itemList 排序 去除文件夹 去除不支持的文件
+    # 遍历目录树，获取文件列表
+    itemList = []
+    for folderName, _, filenames in os.walk(folderPath):
+        for file in filenames:
+            if isPicture(file):
+                itemList.append(os.path.join(folderName, file))
     itemList.sort()
-    tempList = []
-    for item in itemList:
-        itemPath = os.path.join(folderPath, item)
-        if os.path.isfile(itemPath) and isPicture(item):
-            tempList.append(item)
-    itemList = tempList
-    del tempList
     # 若符合条件的图片少于5张 返回
     if len(itemList) < 5:
         return 'Too little picture!'
-    # 获取第二张图片的尺寸，作为视频尺寸
+    # 获取第二张图片的尺寸，作为视频尺寸<------------------------------------------------有待改进
     mItem = itemList[1]
     mItemPath = os.path.join(folderPath, mItem)
     mImg = cv_imgread(mItemPath)
     width = mImg.shape[1]
     height = mImg.shape[0]
     failList, videoPath = pic2video(
-        folderPath, videoFPS, width, height, noBar)
+        folderPath, itemList, videoFPS, width, height, noBar)
     return 1
 
 
-# 多文件夹批处理函数 多线程处理目标函数
-def batchPlus(mainFolder, folderList, videoFPS=2, noBar=True):
+# 多目录批处理函数 多线程处理目标函数
+def batchPlus(folderList, videoFPS=2, noBar=True):
     pbar = tqdm(folderList, ncols=100)
-    for item in pbar:
+    for folder in pbar:
         # 显示进度条
-        pbar.set_description("Processing %s" % modiStr(item, 20))
-        folderPath = os.path.join(mainFolder, item)
-        # 检查是否为文件
-        if os.path.isfile(folderPath):
-            continue
+        pbar.set_description("Processing %s" %
+                             modiStr(os.path.split(folder)[-1], 20))
         # 处理item文件夹
-        singleProcess(folderPath, videoFPS, noBar)
+        singleProcess(folder, videoFPS, noBar)
 
 
 # 多线程处理主函数 threading方法
-def batchMain(mainFolder=os.getcwd(), videoFPS=2, threads=3):
+def batchMain(mainFolder, videoFPS=2, threads=2):
     # 单线程显示子进度条，否则只显示主进度条
     if threads == 1:
         noBar = False
@@ -158,6 +142,13 @@ def batchMain(mainFolder=os.getcwd(), videoFPS=2, threads=3):
         noBar = True
     # 创建文件夹列表
     folderList = os.listdir(mainFolder)
+    tempList = []
+    for folder in folderList:
+        if os.path.isdir(folder):
+            tempList.append(folder)
+    folderList = tempList
+    del tempList
+    # 建立多线程任务
     processingThreads = []
     tasks = len(folderList)//threads + 1
     # 根据线程分配任务
@@ -172,7 +163,6 @@ def batchMain(mainFolder=os.getcwd(), videoFPS=2, threads=3):
     for processingThread in processingThreads:
         processingThread.join()
     print('\n'*(threads - 1))
-    print('Done.')
 
 
 if __name__ == '__main__':
@@ -198,8 +188,9 @@ if __name__ == '__main__':
         print('[batchFlag] = 0 for singlefolder process')
         exit()
     endTime = time.time()
+    print('Done!')
     print('Time cost:', str(endTime-startTime))
     '''
-    mainFolder = '/home/kevenano/Pictures/EH/Single/b9c51820'
+    mainFolder = '/mnt/hgfs/D/t'
     singleProcess(mainFolder)
     '''
