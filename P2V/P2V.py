@@ -26,6 +26,17 @@ def isPicture(itemName):
         return False
 
 
+# 字符串长度规范化
+def modiStr(mes, length):
+    mesLen = len(mes)
+    if mesLen < length:
+        return mes+' '*(length-mesLen)
+    elif mesLen > length:
+        return mes[0:length-2]+'..'
+    else:
+        return mes
+
+
 # 修改图片大小（加黑边）
 def imgResize(image, width, height, color=[0, 0, 0]):
     top, bottom, left, right = (0, 0, 0, 0)
@@ -68,11 +79,11 @@ def pic2video(folderPath, videoFPS, width, height, noBar=False):
 
     failList = []
     if noBar is False:
-        pbar = tqdm(fileList)
+        pbar = tqdm(fileList, ncols=100)
         for item in pbar:
             if isPicture(item):
                 # 显示进度条
-                pbar.set_description("Processing %s" % item)
+                pbar.set_description("Processing %s" % modiStr(item, 20))
                 itemPath = os.path.join(folderPath, item)
                 img = cv_imgread(itemPath)
                 if img is None:
@@ -120,16 +131,16 @@ def singleProcess(folderPath, videoFPS=2, noBar=False):
     width = mImg.shape[1]
     height = mImg.shape[0]
     failList, videoPath = pic2video(
-        folderPath, videoFPS, width, height, noBar=noBar)
+        folderPath, videoFPS, width, height, noBar)
     return 1
 
 
 # 多文件夹批处理函数 多线程处理目标函数
 def batchPlus(mainFolder, folderList, videoFPS=2, noBar=True):
-    pbar = tqdm(folderList)
+    pbar = tqdm(folderList, ncols=100)
     for item in pbar:
         # 显示进度条
-        pbar.set_description("Processing %s" % item)
+        pbar.set_description("Processing %s" % modiStr(item, 20))
         folderPath = os.path.join(mainFolder, item)
         # 检查是否为文件
         if os.path.isfile(folderPath):
@@ -156,8 +167,6 @@ def batchMain(mainFolder=os.getcwd(), videoFPS=2, threads=3):
             target=batchPlus, args=(
                 mainFolder, processingList, videoFPS, noBar))
         processingThreads.append(processingThread)
-    # 开启任务
-    for processingThread in processingThreads:
         processingThread.start()
     # 等待任务结束
     for processingThread in processingThreads:
