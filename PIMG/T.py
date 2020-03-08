@@ -49,8 +49,8 @@ def extraTLG(fileList, outputDir, minSize=500000):
 
 
 if __name__ == '__main__':
-    mainDir = '/home/kevenano/Pictures/喫茶ステラと死神の蝶/t'
-    outputDir = '/home/kevenano/Pictures/喫茶ステラと死神の蝶/output'
+    mainDir = 'G:\\GAL\\EXT\\炎のおっぱい超エロ▼アプリ学園！\\CGPACK'
+    outputDir = 'G:\\GAL\\EXT\\炎のおっぱい超エロ▼アプリ学園！\\out'
     fileList = getFileList(mainDir, 'pimg')
     extraTLG(fileList, outputDir, minSize=1000000)
     print('Done!')
