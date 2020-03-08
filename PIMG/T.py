@@ -1,6 +1,7 @@
 # 批量提取pimg文件夹中的tlg文件
 import os
 from tqdm import tqdm
+import sys
 
 
 # 字符串长度规范化
@@ -49,8 +50,15 @@ def extraTLG(fileList, outputDir, minSize=500000):
 
 
 if __name__ == '__main__':
-    mainDir = '/home/kevenano/Pictures/喫茶ステラと死神の蝶/t'
-    outputDir = '/home/kevenano/Pictures/喫茶ステラと死神の蝶/output'
+    if len(sys.argv) < 4:
+        print('Usge: python3 extraTLG.py [mainDir] [outputDir] [minSize]')
+    mainDir = sys.argv[1]
+    outputDir = sys.argv[2]
+    minSize = int(sys.argv[3])
+    try:
+        os.makedirs(outputDir)
+    except FileExistsError:
+        pass
     fileList = getFileList(mainDir, 'pimg')
-    extraTLG(fileList, outputDir, minSize=1000000)
+    extraTLG(fileList, outputDir, minSize)
     print('Done!')
