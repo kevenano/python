@@ -54,4 +54,3 @@ if __name__ == '__main__':
     fileList = getFileList(mainDir, 'pimg')
     extraTLG(fileList, outputDir, minSize=1000000)
     print('Done!')
-    
