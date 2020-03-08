@@ -144,8 +144,9 @@ def batchMain(mainFolder, videoFPS=2, threads=2):
     folderList = os.listdir(mainFolder)
     tempList = []
     for folder in folderList:
-        if os.path.isdir(folder):
-            tempList.append(folder)
+        folderPath = os.path.join(mainFolder, folder)
+        if os.path.isdir(folderPath):
+            tempList.append(folderPath)
     folderList = tempList
     del tempList
     # 建立多线程任务
@@ -156,7 +157,7 @@ def batchMain(mainFolder, videoFPS=2, threads=2):
         processingList = folderList[i:i+tasks]
         processingThread = threading.Thread(
             target=batchPlus, args=(
-                mainFolder, processingList, videoFPS, noBar))
+                processingList, videoFPS, noBar))
         processingThreads.append(processingThread)
         processingThread.start()
     # 等待任务结束
