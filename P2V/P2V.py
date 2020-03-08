@@ -72,7 +72,7 @@ def pic2video(folderPath, videoFPS, width, height, noBar=False):
 
     videoPath = os.path.join(os.path.split(folderPath)[
                              0], os.path.split(folderPath)[1]+'.mp4')
-    fourcc = cv2.VideoWriter_fourcc(*"avc1")
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     frameSize = (width, height)
     video = cv2.VideoWriter(filename=videoPath, fourcc=fourcc,
                             fps=videoFPS, frameSize=frameSize)
