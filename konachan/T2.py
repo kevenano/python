@@ -115,6 +115,7 @@ if __name__ == '__main__':
         print()
 
     endTime = time.time()
+    spendTime = int(endTime-startTime)
     # 生成任务摘要
     sumFile = open(sumPath, 'w')
     sumFile.write('Task ID:\n')
@@ -136,7 +137,8 @@ if __name__ == '__main__':
     sumFile.write(time.strftime('%Y-%m-%d %H:%M:%S',
                                 time.localtime(endTime))+'\n')
     sumFile.write('Time Cost:\n')
-    sumFile.write(time.strftime('%d %Hh:%Mm:%Ss',
-                                time.localtime(endTime-startTime))+'\n')
+    sumFile.write(str(spendTime//3600)+'h')
+    sumFile.write(str((spendTime % 3600)//60)+'m')
+    sumFile.write(str(spendTime % 60)+'s'+'\n')
     sumFile.close()
     print('All finish!')
