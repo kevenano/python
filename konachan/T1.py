@@ -2,16 +2,16 @@
 
 import requests
 import bs4
-import os
+# import os
 import time
 import shelve
-from random import randint
-from pprint import pprint
+# from random import randint
+# from pprint import pprint
 import copy
-import openpyxl
+# import openpyxl
 import sys
-from hashlib import sha1
-from shutil import rmtree
+# from hashlib import sha1
+# from shutil import rmtree
 
 sys.setrecursionlimit(1000000)
 
@@ -103,6 +103,7 @@ if __name__ == '__main__':
             for chunk in rawPic.iter_content(100000):
                 picFile.write(chunk)
             picFile.close()
+            print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
 
         pageCnt += 1
         nodeE = soup.find(attrs={'class': 'next_page'})
@@ -115,3 +116,5 @@ if __name__ == '__main__':
     dicFile = shelve.open('dicFile')
     dicFile['works'] = works
     dicFile.close()
+
+    
