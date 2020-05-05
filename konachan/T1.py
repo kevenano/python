@@ -1,5 +1,4 @@
-# EH 批量采集＆更新
-
+# konachan批量下载 传统方式
 import requests
 import bs4
 # import os
@@ -116,5 +115,3 @@ if __name__ == '__main__':
     dicFile = shelve.open('dicFile')
     dicFile['works'] = works
     dicFile.close()
-
-    
