@@ -1,15 +1,16 @@
+# konachan批量下载 传统方式
 import requests
 import bs4
-import os
+# import os
 import time
 import shelve
-from random import randint
-from pprint import pprint
+# from random import randint
+# from pprint import pprint
 import copy
-import openpyxl
+# import openpyxl
 import sys
-from hashlib import sha1
-from shutil import rmtree
+# from hashlib import sha1
+# from shutil import rmtree
 
 sys.setrecursionlimit(1000000)
 
@@ -53,39 +54,63 @@ def download(url, num_retries=3, cookie='', params='', raw=0, timeout=40):
 # 测试
 if __name__ == '__main__':
     tags = 'masturbation+order:score'
-    url = 'https://konachan.com/post?page=1&tags=' + tags
-    page = download(url=url, raw=0, timeout=40)
-    pageFile = open('T.html', 'w',encoding='utf-8')
-    pageFile.write(page)
-    pageFile.close()
-
-    soup = bs4.BeautifulSoup(page, 'lxml')
-    nodeA = soup.findAll(attrs={'id': 'post-list-posts'})
-    nodeB = nodeA[0].findAll('li')
+    startUrl = 'https://konachan.com/post?page=1&tags=' + tags
+    endFlag = 0
+    pageCnt = 0
+    maxPage = 5
     works = []
-    work = {}
-    for item in nodeB:
-        work['id'] = item.get('id')
-        nodeC = item.findAll('img')
-        t = nodeC[0].get('alt').split(' ')
-        t[t.index('User:'):] = []
-        t[0:t.index('Tags:')+1] = []
-        work['tags'] = copy.copy(t)
-        nodeD = item.findAll(attrs={'class': 'directlink'})
-        link = nodeD[0].get('href')
-        work['link0'] = link
-        if '/jpeg/' in link:
-            link = link.replace('/jpeg/', '/image/')
-            link = link.replace('.jpg', '.png')
-        work['link1'] = link
-        works.append(copy.copy(work))
+    url = startUrl
+    while endFlag == 0:
+        page = download(url=url, raw=0, timeout=40)
+        if page is None:
+            break
+        '''
+        pageFile = open('T.html', 'w', encoding='utf-8')
+        pageFile.write(page)
+        pageFile.close()
+        '''
 
-    for item in works:
-        link = item['link0']
-        rawPic = download(url=link, raw=1, timeout=60)
-        if rawPic is None:
-            continue
-        picFile = open(item['id']+item['link0'][-4:], 'wb')
-        for chunk in rawPic.iter_content(100000):
-            picFile.write(chunk)
-        picFile.close()
+        soup = bs4.BeautifulSoup(page, 'lxml')
+        nodeA = soup.findAll(attrs={'id': 'post-list-posts'})
+        nodeB = nodeA[0].findAll('li')
+        work = {}
+        for item in nodeB:
+            work['id'] = item.get('id')
+            nodeC = item.findAll('img')
+            t = nodeC[0].get('alt').split(' ')
+            t[t.index('User:'):] = []
+            t[0:t.index('Tags:')+1] = []
+            work['tags'] = copy.copy(t)
+            nodeD = item.findAll(attrs={'class': 'directlink'})
+            link = nodeD[0].get('href')
+            work['link0'] = link
+            if '/jpeg/' in link:
+                link = link.replace('/jpeg/', '/image/')
+                link = link.replace('.jpg', '.png')
+            work['link1'] = link
+            work['sample'] = link[0:link.find(
+                'Konachan.com')+28].replace('image', 'sample')+'sample.jpg'
+            works.append(copy.copy(work))
+
+        for item in works:
+            link = item['link1']
+            rawPic = download(url=link, raw=1, timeout=60)
+            if rawPic is None:
+                continue
+            picFile = open(item['id']+item['link1'][-4:], 'wb')
+            for chunk in rawPic.iter_content(100000):
+                picFile.write(chunk)
+            picFile.close()
+            print(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
+
+        pageCnt += 1
+        nodeE = soup.find(attrs={'class': 'next_page'})
+        if 'rel' not in nodeE.attrs or pageCnt >= maxPage:
+            endFlag = 1
+        else:
+            url = 'https://konachan.com'+nodeE.get('href')
+
+    # 保存works 于 dicFile
+    dicFile = shelve.open('dicFile')
+    dicFile['works'] = works
+    dicFile.close()
