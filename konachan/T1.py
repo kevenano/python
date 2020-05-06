@@ -1,5 +1,3 @@
-# EH 批量采集＆更新
-
 import requests
 import bs4
 import os
@@ -14,7 +12,6 @@ from hashlib import sha1
 from shutil import rmtree
 
 sys.setrecursionlimit(1000000)
-
 
 # Html download function
 # 输入参数raw=1表示直接返回res raw=0则返回res.text
@@ -58,7 +55,7 @@ if __name__ == '__main__':
     tags = 'masturbation+order:score'
     url = 'https://konachan.com/post?page=1&tags=' + tags
     page = download(url=url, raw=0, timeout=40)
-    pageFile = open('T.html', 'w')
+    pageFile = open('T.html', 'w',encoding='utf-8')
     pageFile.write(page)
     pageFile.close()
 

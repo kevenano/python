@@ -151,7 +151,7 @@ def batchMain(mainFolder, videoFPS=2, threads=2):
     del tempList
     # 建立多线程任务
     processingThreads = []
-    tasks = len(folderList)//threads + 1
+    tasks = len(folderList)//threads
     # 根据线程分配任务
     for i in range(0, len(folderList), tasks):
         processingList = folderList[i:i+tasks]
