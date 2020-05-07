@@ -54,7 +54,7 @@ if __name__ == '__main__':
     os.mkdir(jsonPath)
     picPath = os.path.join(taskPath, 'picture')
     os.mkdir(picPath)
-    sumPath = os.path.join(taskPath, 'summary.txt')
+    sumPath = os.path.join(taskPath, 'log.txt')
 
     # 获取搜索参数
     params = {}
@@ -78,7 +78,7 @@ if __name__ == '__main__':
         # 下载并保存json
         print('Deal with page: ', params['page'])
         page = download(url=url, params=params)
-        if page is None or len(page) == 0 or pageCnt == maxPage:
+        if page is None or len(page) < 100 or pageCnt == maxPage:
             break
         # 保存json
         pageCnt += 1
