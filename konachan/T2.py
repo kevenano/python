@@ -73,6 +73,7 @@ if __name__ == '__main__':
     picCnt = 0
     pageCnt = 0
     failList = []
+    reList = []
     # 循环下载所有页面
     while True:
         # 下载并保存json
@@ -94,7 +95,14 @@ if __name__ == '__main__':
             picCnt += 1
             pic_id = item['id']
             pic_url = item['file_url']
-            print('Picture count: ', picCnt, 'ID: ', pic_id)
+            pic_size = item['file_size']
+            # 若源文件太大，记录下来，并更换url
+            thr = 10*1024*1024
+            if item['file_size'] > thr:
+                pic_url = item['jpeg_url']
+                pic_size = item['jpeg_file_size']
+                reList.append(pic_id)
+            print('Picture count: ', picCnt, 'ID: ', pic_id, 'Size: ', pic_size)
             rawFile = download(url=pic_url, raw=1, timeout=300)
             if rawFile is None:
                 failList.append(pic_id)
@@ -130,6 +138,8 @@ if __name__ == '__main__':
     sumFile.write(str(len(failList))+'\n')
     sumFile.write('Faild List:\n')
     sumFile.write(str(failList).replace(',', '\n')+'\n')
+    sumFile.write('Replaced List:\n')
+    sumFile.write(str(reList).replace(',', '\n')+'\n')
     sumFile.write('Start Time:\n')
     sumFile.write(time.strftime('%Y-%m-%d %H:%M:%S',
                                 time.localtime(startTime))+'\n')
