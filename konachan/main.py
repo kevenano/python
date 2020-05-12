@@ -371,10 +371,10 @@ def main():
         failedList, repList, picCnt = downPic(newData, picPath, startCnt=picCnt)
         if len(failedList) > 0:
             for item in failedList:
-                dlFailed.append(item["id"])
+                dlFailed.append(item)
         if len(repList) > 0:
             for item in repList:
-                reList.append(item["id"])
+                reList.append(item)
         # 延时并更新参数
         time.sleep(randint(10, 15))
         urlParams["page"] += 1
