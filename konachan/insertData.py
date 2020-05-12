@@ -176,7 +176,7 @@ if __name__ == '__main__':
     mainFolder = sys.argv[1]
     tableName = sys.argv[2]
     # 链接到数据库
-    db = DB('localhost', 'root', 'qhm2012@@@', 'konachan')
+    db = DB('localhost', 'root', 'qo4hr[Pxm7W5', 'konachan')
     db.connect()
     # 建表
     flag = db.createTable(tableName, columns=typeDic, primaryKey='id')
