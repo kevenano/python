@@ -68,8 +68,9 @@ def download(url, num_retries=3, cookie="", params="", raw=0, timeout=40):
             html = None
             if num_retries and 500 <= resp.status_code < 600:
                 return download(url, num_retries - 1)
-    except requests.exceptions.RequestException:
+    except requests.exceptions.RequestException as e:
         print("Download error!!!")
+        print(e)
         html = None
         resp = None
     except requests.exceptions.Timeout:
@@ -112,13 +113,12 @@ class DB:
     def rollback(self):
         self.connection.rollback()
 
-    def execute(self, sql):
+    def execute(self, sql, args=None):
         try:
-            self.cursor.execute(sql)
+            self.cursor.execute(sql, args)
             return 1
         except pymysql.Error as e:
-            print(e.args[0], e.args[1])
-            # print(type(e.args[0]), type(e.args[1]))
+            # print(e.args[0], e.args[1])
             self.rollback()
             return e
 
@@ -162,18 +162,11 @@ class DB:
         results = self.cursor.fetchall()
         return results
 
-    def update(self, tableName, valDic={"Name": "Value"}, whereClause=""):
-        sql = "update " + "`" + tableName + "`" + " set "
-        cnt = 0
-        for k, v in valDic.items():
-            cnt += 1
-            if cnt == len(valDic):
-                sql = sql + "`" + k + "`" + str(v) + " "
-            else:
-                sql = sql + "`" + k + "`" + str(v) + ", "
+    def update(self, tableName, filed, value, whereClause):
+        sql = "update "+"`"+tableName+"`"+' '
+        sql = sql + "set "+"`"+filed+"`"+'=%s '
         sql = sql + whereClause
-        flag = self.execute(sql)
-        self.commit()
+        flag = self.execute(sql, value)
         return flag
 
 
@@ -198,6 +191,27 @@ def insertData(db, tableName, data):
     return failedList, dupList
 
 
+# 更新数据
+# data必须为字典列表(直接由json.load转换得来)
+# 返回操作失败的项目id
+def updateData(db, tableName, data):
+    global typeDic
+    failedList = []
+    for work in data:
+        for k, v in work.items():
+            if typeDic[k] in ["text", "char(10)"]:
+                work[k] = str(v)
+            if typeDic[k] == "int" and v is None:
+                work[k] = -1
+            if k == 'id':
+                continue
+            flag = db.update(tableName, k, work[k], r"where `id`="+str(work['id']))
+            if flag != 1:
+                failedList.append(work["id"])
+                break
+    return failedList
+
+
 # 获取参数
 # mainParams: 所有参数 urlParams: 下载专用参数
 def getParams():
@@ -211,12 +225,12 @@ def getParams():
         startPage = 1
     if maxPage < 1:
         maxPage = 1
+    mainParams["startPage"] = startPage
     mainParams["tags"] = tags
-    mainParams["page"] = startPage
     mainParams["maxPage"] = maxPage
     mainParams["tableName"] = tableName
-    urlParams["tags"] = tags
     urlParams["page"] = startPage
+    urlParams["tags"] = tags
 
     return mainParams, urlParams
 
@@ -290,6 +304,7 @@ def main():
     # 链接数据库
     db = DB("localhost", "root", "qo4hr[Pxm7W5", "konachan")
     db.connect()
+
     # 建表
     flag = db.createTable(mainParams["tableName"], columns=typeDic, primaryKey="id")
     if flag == 1:
@@ -304,9 +319,11 @@ def main():
     # 循环处理所有页面
     while True:
         # 下载并保存json
-        print("Deal with page: ", mainParams["page"])
+        if pageCnt == mainParams["maxPage"]:
+            break
+        print("Deal with page: ", urlParams["page"])
         page = download(url=url, params=urlParams)
-        if page is None or len(page) < 100 or pageCnt == mainParams["maxPage"]:
+        if page is None or len(page) < 100:
             break
         # 保存json
         pageCnt += 1
@@ -346,14 +363,10 @@ def main():
                     inFailed.append(item)
         # 更新数据
         if len(upData) > 0:
-            for item in upData:
-                flag = db.update(mainParams["tableName"], item)
-                if flag == 1:
-                    print("更新成功!")
-                else:
-                    print("Fail to update!")
-                    print(flag[0], flag[1])
-                    upFailed.append(item["id"])
+            failedList = updateData(db, mainParams['tableName'], upData)
+            if len(failedList) > 0:
+                for item in failedList:
+                    upFailed.append(item)
         # 下载新资源
         failedList, repList, picCnt = downPic(newData, picPath, startCnt=picCnt)
         if len(failedList) > 0:
@@ -367,6 +380,9 @@ def main():
         urlParams["page"] += 1
         print()
 
+    # 断开数据库链接
+    db.close()
+
     # 保存失败id列表变量
     dataFile = shelve.open(failedDataPath)
     dataFile["reList"] = reList
@@ -378,44 +394,47 @@ def main():
     # 写日志
     endTime = time.time()
     spendTime = int(endTime - startTime)
-    sumFile = open(sumPath, 'w')
-    sumFile.write('Task ID:\n')
-    sumFile.write(str(taskId)+'\n')
-    sumFile.write('Tags:\n')
-    sumFile.write(mainParams['tags']+'\n')
-    sumFile.write('Pages:\n')
-    sumFile.write(str(mainParams['startPage'])+'-'+str(mainParams['startPage']+pageCnt-1)+'\n')
-    sumFile.write('New Work Count:\n')
-    sumFile.write(str(picCnt)+'\n')
-    sumFile.write('Replaced Count:\n')
-    sumFile.write(str(len(reList))+'\n')
-    sumFile.write('Replaced List:\n')
-    sumFile.write(str(reList).replace(',', '\n')+'\n')
-    sumFile.write('Insert Failed Count:\n')
-    sumFile.write(str(len(inFailed))+'\n')
-    sumFile.write('Insert Failed List:\n')
-    sumFile.write(str(inFailed).replace(',', '\n')+'\n')
-    sumFile.write('Update Failed Count:\n')
-    sumFile.write(str(len(upFailed))+'\n')
-    sumFile.write('Update Failed List:\n')
-    sumFile.write(str(upFailed).replace(',', '\n')+'\n')
-    sumFile.write('Download Failed Count:\n')
-    sumFile.write(str(len(dlFailed))+'\n')
-    sumFile.write('Download Failed List:\n')
-    sumFile.write(str(dlFailed).replace(',', '\n')+'\n')
-    sumFile.write('Start Time:\n')
-    sumFile.write(time.strftime('%Y-%m-%d %H:%M:%S',
-                                time.localtime(startTime))+'\n')
-    sumFile.write('End Time:\n')
-    sumFile.write(time.strftime('%Y-%m-%d %H:%M:%S',
-                                time.localtime(endTime))+'\n')
-    sumFile.write('Time Cost:\n')
-    sumFile.write(str(spendTime//3600)+'h')
-    sumFile.write(str((spendTime % 3600)//60)+'m')
-    sumFile.write(str(spendTime % 60)+'s'+'\n')
+    sumFile = open(sumPath, "w")
+    sumFile.write("Task ID:\n")
+    sumFile.write(str(taskId) + "\n")
+    sumFile.write("Tags:\n")
+    sumFile.write(mainParams["tags"] + "\n")
+    sumFile.write("Pages:\n")
+    sumFile.write(
+        str(mainParams["startPage"])
+        + "-"
+        + str(mainParams["startPage"] + pageCnt - 1)
+        + "\n"
+    )
+    sumFile.write("New Work Count:\n")
+    sumFile.write(str(picCnt) + "\n")
+    sumFile.write("Replaced Count:\n")
+    sumFile.write(str(len(reList)) + "\n")
+    sumFile.write("Replaced List:\n")
+    sumFile.write(str(reList).replace(",", "\n") + "\n")
+    sumFile.write("Insert Failed Count:\n")
+    sumFile.write(str(len(inFailed)) + "\n")
+    sumFile.write("Insert Failed List:\n")
+    sumFile.write(str(inFailed).replace(",", "\n") + "\n")
+    sumFile.write("Update Failed Count:\n")
+    sumFile.write(str(len(upFailed)) + "\n")
+    sumFile.write("Update Failed List:\n")
+    sumFile.write(str(upFailed).replace(",", "\n") + "\n")
+    sumFile.write("Download Failed Count:\n")
+    sumFile.write(str(len(dlFailed)) + "\n")
+    sumFile.write("Download Failed List:\n")
+    sumFile.write(str(dlFailed).replace(",", "\n") + "\n")
+    sumFile.write("Start Time:\n")
+    sumFile.write(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(startTime)) + "\n")
+    sumFile.write("End Time:\n")
+    sumFile.write(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(endTime)) + "\n")
+    sumFile.write("Time Cost:\n")
+    sumFile.write(str(spendTime // 3600) + "h")
+    sumFile.write(str((spendTime % 3600) // 60) + "m")
+    sumFile.write(str(spendTime % 60) + "s" + "\n")
     sumFile.close()
-    print('All finish!')
+    print("All finish!")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
