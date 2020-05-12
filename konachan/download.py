@@ -5,11 +5,10 @@ import time
 import os
 from random import randint
 
+
 # Html download function
 # 输入参数raw=1表示直接返回res raw=0则返回res.text
 # 若下载失败， 一律返回None
-
-
 def download(url, num_retries=3, cookie='', params='', raw=0, timeout=40):
     print('Downloading: ', url)
     headers = {
