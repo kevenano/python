@@ -4,7 +4,6 @@ import json
 import pymysql
 import os
 import time
-import shelve
 from random import randint
 
 # 标签对应数据库中数据类型
@@ -45,13 +44,15 @@ typeDic = {
     "frames_pending": "text",
     "frames_string": "text",
     "frames": "text",
+    "is_replaced": "tinyint(1)",
+    "is_dlFailed": "tinyint(1)"
 }
 
 
 # Html download function
 # 输入参数raw=1表示直接返回res raw=0则返回res.text
 # 若下载失败， 一律返回None
-def download(url, num_retries=3, cookie="", params="", raw=0, timeout=40):
+def download(url, num_retries=3, cookie="", params="", raw=0, timeout=(30, 300)):
     print("Downloading: ", url)
     headers = {
         "user-agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:75.0) "
@@ -240,39 +241,62 @@ def getParams():
 # sizeThr: 单文件大小阈值
 # starCnt: 初始计数
 # 返回:
-# failedList: 下载失败的id列表
+# data: 更新后的字典列表（包含下载状态信息）
 # endCnt: 结束时总图片计数
 def downPic(data, picPath, sizeThr=10 * 1024 * 1024, startCnt=0):
     picCnt = startCnt
-    failedList = []
-    repList = []
     for item in data:
+        item['is_replaced'] = 0
+        item['is_dlFailed'] = 0
         picCnt += 1
         pic_id = item["id"]
         pic_url = item["file_url"]
         pic_size = item["file_size"]
-        # 若源文件太大，记录下来，并更换url
-        if item["file_size"] > sizeThr:
+        dtime = int(pic_size/(1024*1024)*60)
+        # 尝试下载源文件
+        print("Picture count: ", picCnt, "ID: ", pic_id, "Size: ", pic_size)
+        rawFile = download(url=pic_url, raw=1, timeout=(30, dtime))
+        if rawFile is None:
+            # 替换下载jpeg文件
             pic_url = item["jpeg_url"]
             pic_size = item["jpeg_file_size"]
-            repList.append(pic_id)
-        print("Picture count: ", picCnt, "ID: ", pic_id, "Size: ", pic_size)
-        rawFile = download(url=pic_url, raw=1, timeout=300)
-        if rawFile is None:
-            failedList.append(pic_id)
+            dtime = int(pic_size/(1024*1024)*60)
+            print('Try to download jpeg file instead... size: ', pic_size)
+            rawFile = download(url=pic_url, raw=1, timeout=(30, dtime))
+            if rawFile is None:
+                # 下载失败
+                print('下载失败!')
+                item['is_dlFailed'] = 1
+            else:
+                # jpeg文件下载成功
+                print('下载成功!')
+                item['is_replaced'] = 1
+                # 保存于本地
+                tmpPath = os.path.join(picPath, str(pic_id) + pic_url[-4:])
+                picFile = open(tmpPath, "wb")
+                for chunk in rawFile.iter_content(100000):
+                    picFile.write(chunk)
+                picFile.close()
+                del tmpPath
+                print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+                print()
+        else:
+            # 源文件下载成功
+            print('下载成功!')
+            # 保存于本地
+            tmpPath = os.path.join(picPath, str(pic_id) + pic_url[-4:])
+            picFile = open(tmpPath, "wb")
+            for chunk in rawFile.iter_content(100000):
+                picFile.write(chunk)
+            picFile.close()
+            del tmpPath
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
             print()
-            continue
-        tmpPath = os.path.join(picPath, str(pic_id) + pic_url[-4:])
-        picFile = open(tmpPath, "wb")
-        for chunk in rawFile.iter_content(100000):
-            picFile.write(chunk)
-        picFile.close()
-        del tmpPath
-        print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
-        print()
+        # sleep
         time.sleep(randint(3, 5))
+    # 结束时work计数
     endCnt = picCnt
-    return failedList, repList, endCnt
+    return data, endCnt
 
 
 # 主函数
@@ -286,7 +310,6 @@ def main():
     os.mkdir(jsonPath)
     picPath = os.path.join(taskPath, "picture")
     os.mkdir(picPath)
-    failedDataPath = os.path.join(taskPath, "failed")
     sumPath = os.path.join(taskPath, "log.txt")
 
     # 获取参数
@@ -297,9 +320,9 @@ def main():
     picCnt = 0
     pageCnt = 0
     reList = []
+    dlFailed = []
     inFailed = []
     upFailed = []
-    dlFailed = []
 
     # 链接数据库
     db = DB("localhost", "root", "qo4hr[Pxm7W5", "konachan")
@@ -311,8 +334,10 @@ def main():
         print("建表成功!")
     elif flag.args[0] == 1050:
         print("表格已存在!")
+        print()
     else:
         print("建表失败!")
+        print()
         print(flag.args[0], flag.args[1])
         exit()
 
@@ -355,26 +380,25 @@ def main():
                 newData.append(item)
             else:
                 upData.append(item)
-        # 插入数据
+        # 下载文件并插入数据库
         if len(newData) > 0:
+            newData, picCnt = downPic(newData, picPath, startCnt=picCnt)
             failedList, dupList = insertData(db, mainParams["tableName"], newData)
+            # 记录
             if len(failedList) > 0:
                 for item in failedList:
                     inFailed.append(item)
-        # 更新数据
+            for item in newData:
+                if item['is_replaced'] == 1:
+                    reList.append(item['id'])
+                if item['is_dlFailed'] == 1:
+                    dlFailed.append(item['id'])
+        # 更新旧数据
         if len(upData) > 0:
             failedList = updateData(db, mainParams['tableName'], upData)
             if len(failedList) > 0:
                 for item in failedList:
                     upFailed.append(item)
-        # 下载新资源
-        failedList, repList, picCnt = downPic(newData, picPath, startCnt=picCnt)
-        if len(failedList) > 0:
-            for item in failedList:
-                dlFailed.append(item)
-        if len(repList) > 0:
-            for item in repList:
-                reList.append(item)
         # 延时并更新参数
         time.sleep(randint(10, 15))
         urlParams["page"] += 1
@@ -382,14 +406,6 @@ def main():
 
     # 断开数据库链接
     db.close()
-
-    # 保存失败id列表变量
-    dataFile = shelve.open(failedDataPath)
-    dataFile["reList"] = reList
-    dataFile["inFailed"] = inFailed
-    dataFile["upFailed"] = upFailed
-    dataFile["dlFailed"] = dlFailed
-    dataFile.close()
 
     # 写日志
     endTime = time.time()

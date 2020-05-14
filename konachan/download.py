@@ -9,7 +9,7 @@ from random import randint
 # Html download function
 # 输入参数raw=1表示直接返回res raw=0则返回res.text
 # 若下载失败， 一律返回None
-def download(url, num_retries=3, cookie='', params='', raw=0, timeout=40):
+def download(url, num_retries=3, cookie='', params='', raw=0, timeout=(30, 600)):
     print('Downloading: ', url)
     headers = {
         'user-agent':
@@ -102,7 +102,7 @@ if __name__ == '__main__':
                 pic_size = item['jpeg_file_size']
                 reList.append(pic_id)
             print('Picture count: ', picCnt, 'ID: ', pic_id, 'Size: ', pic_size)
-            rawFile = download(url=pic_url, raw=1, timeout=300)
+            rawFile = download(url=pic_url, raw=1, timeout=(30, 600))
             if rawFile is None:
                 failList.append(pic_id)
                 print()
