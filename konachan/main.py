@@ -52,13 +52,10 @@ typeDic = {
 # Html download function
 # 输入参数raw=1表示直接返回res raw=0则返回res.text
 # 若下载失败， 一律返回None
-def download(url, num_retries=3, cookie="", params="", raw=0, timeout=(30, 300)):
+def download(url, num_retries=3, headers={}, cookie="", params="", raw=0, timeout=(30, 300)):
     print("Downloading: ", url)
-    headers = {
-        "user-agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:75.0) "
-        + "Gecko/20100101 Firefox/75.0",
-        "connection": "keep-alive",
-    }
+    if "user-agent" not in headers:
+        headers["user-agent"] = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:75.0) Gecko/20100101 Firefox/75.0"
     if cookie != "":
         headers["cookie"] = cookie
     try:
@@ -71,7 +68,7 @@ def download(url, num_retries=3, cookie="", params="", raw=0, timeout=(30, 300))
                 return download(url, num_retries - 1)
     except requests.exceptions.RequestException as e:
         print("Download error!!!")
-        print(e)
+        print(e[0])
         html = None
         resp = None
     except requests.exceptions.Timeout:
@@ -269,6 +266,8 @@ def downPic(data, picPath, startCnt=0):
         pic_url = item["file_url"]
         pic_size = item["file_size"]
         dtime = int(pic_size / (1024 * 1024) * 60)
+        if dtime < 60:
+            dtime = 60
         # 尝试下载源文件
         print("Picture count: ", picCnt, "ID: ", pic_id, "Size: ", pic_size)
         rawFile = download(url=pic_url, raw=1, timeout=(30, dtime))
@@ -277,6 +276,8 @@ def downPic(data, picPath, startCnt=0):
             pic_url = item["jpeg_url"]
             pic_size = item["jpeg_file_size"]
             dtime = int(pic_size / (1024 * 1024) * 60)
+            if dtime < 60:
+                dtime = 60
             print("Try to download jpeg file instead... size: ", pic_size)
             rawFile = download(url=pic_url, raw=1, timeout=(30, dtime))
             if rawFile is None:
@@ -341,11 +342,11 @@ def reDownload(db, mainParams):
     upFailed = []
     # 尝试打开json文件
     try:
-        jsFile = open(jsonPath, "r")
+        jsFile = open(jsonPath, "r", encoding='UTF-8')
     except Exception as e:
         print(e)
         return -1
-    data = json.load(jsFile)
+    data = json.load(jsFile)        # 小心load 和 loads的区别!!!!!!!!!!
     jsFile.close()
     # 下载文件并更新数据状态标识
     data, picCnt = downPic(data, picPath)
@@ -423,7 +424,7 @@ def newDownload(db, mainParams, urlParams):
         pageFile.close()
         del tmpPath
         # json转python
-        data = json.loads(page)
+        data = json.loads(page)     # 小心load 和 loads的区别!!!!!!!!!!
         newData = []
         upData = []
         # 检查数据库，去重 item 字典 data 列表
@@ -571,13 +572,13 @@ def main():
 
     # 直接从json文件下载
     if pflag == 1:
-        mainParams["picPath"]
+        mainParams["picPath"] = picPath
         reList, dlFailed, inFailed, upFailed, picCnt = reDownload(db, mainParams)
         pageCnt = 1
 
     # 从网站爬取
     if pflag == 0:
-        mainParams["picPath"]
+        mainParams["picPath"] = picPath
         mainParams["jsonPath"] = jsonPath
         mainParams["picPath"] = picPath
         reList, dlFailed, inFailed, upFailed, picCnt, pageCnt = newDownload(
