@@ -77,7 +77,7 @@ def downJson(url, urlParams):
         lock.release()
     # 尝试下载json
     res = download(url=url, params=urlParams, reFlag=2, timeout=(30, 60))
-    if res is None and lock.acquire():
+    if (res is None or len(res.content) < 1000) and lock.acquire():
         # 更新错误列表
         failedList.append(urlParams["page"])
         lock.release()
