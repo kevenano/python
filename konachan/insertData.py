@@ -6,6 +6,8 @@ import copy
 import time
 import sys
 from pprint import pformat
+from tqdm import tqdm
+
 
 typeDic = {
     'id': 'int',
@@ -43,17 +45,19 @@ typeDic = {
     'frames_pending_string': 'text',
     'frames_pending': 'text',
     'frames_string': 'text',
-    'frames': 'text'
+    'frames': 'text',
+    'flag_detail': 'char(10)'
 }
 
 
+# 数据库类
 class DB:
-    host = ''
-    user = ''
-    __passwd = ''
-    database = ''
-    connection = ''
-    cursor = ''
+    host = ""
+    user = ""
+    __passwd = ""
+    database = ""
+    connection = ""
+    cursor = ""
 
     def __init__(self, host=None, user=None, passwd="", database=None):
         self.host = host
@@ -62,8 +66,9 @@ class DB:
         self.database = database
 
     def connect(self):
-        self.connection = pymysql.connect(self.host, self.user, self.__passwd,
-                                          self.database)
+        self.connection = pymysql.connect(
+            self.host, self.user, self.__passwd, self.database
+        )
         self.cursor = self.connection.cursor()
 
     def commit(self):
@@ -75,27 +80,28 @@ class DB:
     def rollback(self):
         self.connection.rollback()
 
-    def execute(self, sql):
+    def execute(self, sql, args=None):
         try:
-            self.cursor.execute(sql)
+            self.cursor.execute(sql, args)
             return 1
         except pymysql.Error as e:
-            print(e.args[0], e.args[1])
-            # print(type(e.args[0]), type(e.args[1]))
+            # print(e.args[0], e.args[1])
             self.rollback()
             return e
 
-    def createTable(self,
-                    tableName,
-                    columns={'Name': 'Type'},
-                    primaryKey='key',
-                    engine='innodb',
-                    de_charset='utf8mb4'):
+    def createTable(
+        self,
+        tableName,
+        columns={"Name": "Type"},
+        primaryKey="key",
+        engine="innodb",
+        de_charset="utf8mb4",
+    ):
         sql = """create table `""" + tableName + """`("""
         for clName, clType in columns.items():
-            sql = sql + '`' + clName + '`' + ' ' + clType + ','
-        sql = sql + 'primary key' + '(`' + primaryKey + '`)' + ')'
-        sql = sql + 'engine=' + engine + ' ' + 'default charset=' + de_charset
+            sql = sql + "`" + clName + "`" + " " + clType + ","
+        sql = sql + "primary key" + "(`" + primaryKey + "`)" + ")"
+        sql = sql + "engine=" + engine + " " + "default charset=" + de_charset
         flag = self.execute(sql)
         self.commit()
         return flag
@@ -103,70 +109,80 @@ class DB:
     def dropTable(self, tablesName):
         sql = """drop table """
         for item in tablesName:
-            sql = sql + '`' + item + '`' + ','
-        sql = sql[0:len(sql) - 1]
+            sql = sql + "`" + item + "`" + ","
+        sql = sql[0: len(sql) - 1]
         flag = self.execute(sql)
         self.commit()
         return flag
 
     def insert(self, tableName, fileds, values):
-        fileds = str(tuple(fileds)).replace("""'""", '`')
+        fileds = str(tuple(fileds)).replace("""'""", "`")
         values = str(tuple(values))
-        tableName = '`' + tableName + '`'
-        sql = """insert into """ + tableName + ' '
-        sql = sql + fileds + ' values ' + values
+        tableName = "`" + tableName + "`"
+        sql = """insert into """ + tableName + " "
+        sql = sql + fileds + " values " + values
         flag = self.execute(sql)
         self.commit()
         return flag
 
+    def fetchall(self):
+        results = self.cursor.fetchall()
+        return results
 
-def creatTable(modeJson, db, tableName):
-    # json 模板
-    try:
-        jsFile = open(modeJson, 'r')
-    except Exception:
-        return -1
-
-    data = json.load(jsFile)
-    data = data[0]
-    jsFile.close()
-
-    dic1 = {}
-    dic2 = {}
-
-    # 数据类型转换 字典python --> mysql
-    dic2['int'] = 'int'
-    dic2['str'] = 'text'
-    dic2['list'] = 'text'
-    dic2['bool'] = 'char(10)'
-
-    # 构造columns
-    for k, v in data.items():
-        dic1[k] = dic2[str(type(v)).replace("""<class '""",
-                                            '').replace("""'>""", '')]
-
-    # 建表
-    flag = db.createTable(tableName, columns=dic1, primaryKey='id')
-    return flag
+    def update(self, tableName, filed, value, whereClause):
+        sql = "update " + "`" + tableName + "`" + " "
+        sql = sql + "set " + "`" + filed + "`" + "=%s "
+        sql = sql + whereClause
+        flag = self.execute(sql, value)
+        return flag
 
 
+# 向数据库中插入data
+# data必须为字典列表(直接由json.load转换得来)
 def insertData(db, tableName, data):
     global typeDic
     dupList = []
     failedList = []
     for work in data:
         for k, v in work.items():
-            if typeDic[k] in ['text', 'char(10)']:
+            if typeDic[k] in ["text", "char(10)"]:
                 work[k] = str(v)
-            if typeDic[k] == 'int' and v is None:
+            if typeDic[k] == "int" and v is None:
                 work[k] = -1
         flag = db.insert(tableName, tuple(work.keys()), tuple(work.values()))
         if flag != 1:
             if flag.args[0] == 1062:
-                dupList.append(work['id'])
+                # 主键冲突 尝试更新
+                dupList.append(work["id"])
+                fl = updateData(db, tableName, [work])
+                if len(fl) > 0:
+                    # 更新失败
+                    for item in fl:
+                        failedList.append(work["id"])
             else:
-                failedList.append(work['id'])
+                failedList.append(work["id"])
     return failedList, dupList
+
+
+# 更新数据
+# data必须为字典列表(直接由json.load转换得来)
+# 返回操作失败的项目id
+def updateData(db, tableName, data):
+    global typeDic
+    failedList = []
+    for work in data:
+        for k, v in work.items():
+            if typeDic[k] in ["text", "char(10)"]:
+                work[k] = str(v)
+            if typeDic[k] == "int" and v is None:
+                work[k] = -1
+            if k == "id":
+                continue
+            flag = db.update(tableName, k, work[k], r"where `id`=" + str(work["id"]))
+            if flag != 1:
+                failedList.append(work["id"])
+                break
+    return failedList
 
 
 if __name__ == '__main__':
@@ -198,9 +214,10 @@ if __name__ == '__main__':
         for fileName in fileNames:
             if fileName.endswith('.json'):
                 jsList.append(os.path.join(folderName, fileName))
-    for file in jsList:
+    pbar = tqdm(jsList, ncols=100)
+    for file in pbar:
         cnt += 1
-        print(cnt, 'of', len(jsList))
+        pbar.set_description(f"{cnt} of {len(jsList)}")
         jsFile = open(file, 'r', encoding='utf-8')
         data = json.load(jsFile)
         jsFile.close()
