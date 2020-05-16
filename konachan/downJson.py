@@ -28,7 +28,7 @@ failedList = []
 
 # Html download function
 # 输入参数reFlag = 0 返回text, 1 返回content, 2 返回resp
-# 若下载失败， 一律返回None
+# 如下载错误，将返回resp=None
 def download(
     url, num_retries=3, headers={}, cookie="", params="", reFlag=0, timeout=(30, 300),
 ):
@@ -58,7 +58,6 @@ def download(
         print("请求超时!")
         html = None
         content = None
-        resp = None
     if reFlag == 0:
         return html
     elif reFlag == 1:
@@ -69,8 +68,9 @@ def download(
 
 # 多线程下载保存json
 def downJson(url, urlParams):
-    global failedList
+    global jsDownFailedList
     global jsonPath
+    global finishFlag
     # 打印提示信息
     if lock.acquire():
         print("Deal with page ", urlParams["page"])
@@ -78,12 +78,18 @@ def downJson(url, urlParams):
         lock.release()
     # 尝试下载json
     res = download(url=url, params=urlParams, reFlag=2, timeout=(30, 60))
-    if (res is None or len(res.content) < 1000) and lock.acquire():
+    if (res is None or res.status_code != 200) and lock.acquire():
         # 更新错误列表
-        failedList.append(urlParams["page"])
-        lock.release()
+        jsDownFailedList.append(urlParams["page"])
         print(f"Page {urlParams['page']} fail...")
         print()
+        lock.release()
+    elif len(res.content) < 100 and lock.acquire():
+        # 空的json页, 直接判定下载结束
+        finishFlag = 1
+        print("Page "+str(urlParams["page"])+" empty page!")
+        print()
+        lock.release()
     else:
         # 保存json
         tmpPath = os.path.join(jsonPath, str(urlParams["page"]) + ".json")
@@ -98,8 +104,8 @@ def writeLog(startPage, endPage, CNT):
     global taskId
     global taskPath
     global jsonPath
+    global failedList
     logPath = os.path.join(taskPath, f"log_{str(CNT)}.txt")
-    failedList
 
     endTime = time.time()
     spendTime = int(endTime - startTime)
@@ -170,7 +176,7 @@ def getParams():
 
 # 主函数
 def main():
-    # 获取参数
+    # 获取参数 建议：limit=100, threadNum=20
     pageList, limit, threadNum = getParams()
     # 初始化相关参数
     pageCnt = 0  # 完成的任务数

@@ -10,43 +10,43 @@ from tqdm import tqdm
 
 
 typeDic = {
-    'id': 'int',
-    'tags': 'text',
-    'created_at': 'int',
-    'creator_id': 'int',
-    'author': 'text',
-    'change': 'int',
-    'source': 'text',
-    'score': 'int',
-    'md5': 'text',
-    'file_size': 'int',
-    'file_url': 'text',
-    'is_shown_in_index': 'char(10)',
-    'preview_url': 'text',
-    'preview_width': 'int',
-    'preview_height': 'int',
-    'actual_preview_width': 'int',
-    'actual_preview_height': 'int',
-    'sample_url': 'text',
-    'sample_width': 'int',
-    'sample_height': 'int',
-    'sample_file_size': 'int',
-    'jpeg_url': 'text',
-    'jpeg_width': 'int',
-    'jpeg_height': 'int',
-    'jpeg_file_size': 'int',
-    'rating': 'text',
-    'has_children': 'char(10)',
-    'parent_id': 'int',
-    'status': 'text',
-    'width': 'int',
-    'height': 'int',
-    'is_held': 'char(10)',
-    'frames_pending_string': 'text',
-    'frames_pending': 'text',
-    'frames_string': 'text',
-    'frames': 'text',
-    'flag_detail': 'char(10)'
+    "id": "int",
+    "tags": "text",
+    "created_at": "int",
+    "creator_id": "int",
+    "author": "text",
+    "change": "int",
+    "source": "text",
+    "score": "int",
+    "md5": "text",
+    "file_size": "int",
+    "file_url": "text",
+    "is_shown_in_index": "text",
+    "preview_url": "text",
+    "preview_width": "int",
+    "preview_height": "int",
+    "actual_preview_width": "int",
+    "actual_preview_height": "int",
+    "sample_url": "text",
+    "sample_width": "int",
+    "sample_height": "int",
+    "sample_file_size": "int",
+    "jpeg_url": "text",
+    "jpeg_width": "int",
+    "jpeg_height": "int",
+    "jpeg_file_size": "int",
+    "rating": "text",
+    "has_children": "text",
+    "parent_id": "int",
+    "status": "text",
+    "width": "int",
+    "height": "int",
+    "is_held": "text",
+    "frames_pending_string": "text",
+    "frames_pending": "text",
+    "frames_string": "text",
+    "frames": "text",
+    "flag_detail": "text",
 }
 
 
@@ -147,7 +147,7 @@ def insertData(db, tableName, data):
         for k, v in work.items():
             if typeDic[k] in ["text", "char(10)"]:
                 work[k] = str(v)
-            if typeDic[k] == "int" and v is None:
+            if typeDic[k] == "int" and type(v) is not int:
                 work[k] = -1
         flag = db.insert(tableName, tuple(work.keys()), tuple(work.values()))
         if flag != 1:
@@ -164,7 +164,7 @@ def insertData(db, tableName, data):
     return failedList, dupList
 
 
-# 更新数据
+# 更新数据库
 # data必须为字典列表(直接由json.load转换得来)
 # 返回操作失败的项目id
 def updateData(db, tableName, data):
@@ -174,7 +174,7 @@ def updateData(db, tableName, data):
         for k, v in work.items():
             if typeDic[k] in ["text", "char(10)"]:
                 work[k] = str(v)
-            if typeDic[k] == "int" and v is None:
+            if typeDic[k] == "int" and type(v) is not int:
                 work[k] = -1
             if k == "id":
                 continue
