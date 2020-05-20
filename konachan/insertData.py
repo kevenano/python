@@ -84,8 +84,12 @@ class DB:
         try:
             self.cursor.execute(sql, args)
             return 1
+        except pymysql.err.InterfaceError:
+            self.connection.ping(reconnect=True)
+            self.cursor.execute(sql, args)
+            return 1
         except pymysql.Error as e:
-            # print(e.args[0], e.args[1])
+            # print(e.args[0])
             self.rollback()
             return e
 
