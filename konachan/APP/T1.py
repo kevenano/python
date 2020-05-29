@@ -98,8 +98,10 @@ class DB:
 
 
 def clickGo(ui, db):
+    # 显示器清零
+    ui.ResultCnt.display(int(0))
     # unsafe 标签列表
-    unSafeList = ["censored", "panty", "pussy", "breats", "sex", "masturbation", "nude"]
+    unSafeList = ["~censored", "~panty", "~pussy", "~breats", "~sex", "~masturbation", "~nude"]
     # 获取参数搜索
     tags = ui.Tags.text()  # str
     startId = ui.IDRange1.value()  # int
@@ -127,7 +129,7 @@ def clickGo(ui, db):
     if endId == 0 and startId == 0:
         startId = 1
         endId = 99999999
-    sql = "SELECT id FROM main WHERE "
+    sql = "SELECT * FROM main WHERE "
     for item in tags_F:
         sql = sql + f"tags LIKE '%{item}%' AND "
     for item in tags_R:
@@ -135,17 +137,14 @@ def clickGo(ui, db):
     sql = sql + f"id >= {startId} AND id <= {endId} "
     sql = sql + f"ORDER BY {order}"
     print(sql)
-    showResultCnt(ui, db, sql)
-
-
-def showResultCnt(ui, db, sql):
+    # 执行sql
     flag = db.execute(sql)
     if flag != 1:
         print(flag.args[0])
-        results = []
+        resultsCnt = []
     else:
-        results = db.fetchall()
-    resultsCnt = len(results)
+        resultsCnt = db.cursor.rowcount
+    # 显示结果数量
     ui.ResultCnt.display(resultsCnt)
 
 
