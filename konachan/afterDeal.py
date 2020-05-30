@@ -22,6 +22,7 @@ os.mkdir(taskPath)
 def reName(filePath):
     fileName = os.path.basename(filePath)
     items = fileName.split(" ")
+    sufix = fileName.split(".")[-1]
     outPath = filePath
     try:
         fileID = int(items[2])
@@ -29,7 +30,7 @@ def reName(filePath):
         print(e)
         return -1, outPath
     try:
-        outPath = filePath.replace(fileName[0:-4], str(fileID))
+        outPath = filePath.replace(fileName, str(fileID)+"."+sufix)
         os.rename(filePath, outPath)
         return 1, outPath
     except Exception as e:
@@ -42,7 +43,7 @@ def reName(filePath):
 def mkThumb(filePath, outFolder, outSize=(200, 200)):
     try:
         fileName = os.path.basename(filePath)
-        outName = "thumb-" + fileName[0:-4] + ".jpg"
+        outName = "thumb-" + fileName.split(".")[0] + ".jpg"
         outPath = os.path.join(outFolder, outName)
         im = Image.open(filePath)
         im.thumbnail(outSize)
@@ -95,7 +96,7 @@ def main():
     print("正在获取文件列表...")
     for folderName, subfolders, fileNames in os.walk(inDir):
         for fileName in fileNames:
-            if fileName.endswith(("jpg", "png")):
+            if fileName.endswith(("jpg", "png", "jpeg", "gif")) and fileName.startswith("Konachan.com - "):
                 fileList.append(os.path.join(folderName, fileName))
     # 多线程循环处理所有文件
     print("正在处理...")
@@ -150,5 +151,17 @@ def writeLog(fileCnt):
     logFile.close()
 
 
+# test
+def test():
+    inDir = "I:\\image\\2009"
+    for folderName, subfolders, fileNames in os.walk(inDir):
+        for fileName in fileNames:
+            if fileName.endswith("jpeg"):
+                inPath = os.path.join(folderName, fileName)
+                outPath = inPath.replace("jpeg", ".jpeg")
+                os.rename(inPath, outPath)
+
+
 if __name__ == "__main__":
     main()
+    # test()
