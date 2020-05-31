@@ -506,7 +506,7 @@ if __name__ == '__main__':
         serchDown()
     elif choice == '2':
         deUrl = input('请务必输入正确的详情页网址：\n')
-        downDirect(deUrl, skip=1)
+        downDirect(deUrl)
     elif choice == '3':
         excelPath = input('输入表格路径：\n')
         excelDown(excelPath)

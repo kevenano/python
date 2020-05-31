@@ -70,7 +70,7 @@ class DB:
         sql = """drop table """
         for item in tablesName:
             sql = sql + "`" + item + "`" + ","
-        sql = sql[0 : len(sql) - 1]
+        sql = sql[0: len(sql) - 1]
         flag = self.execute(sql)
         self.commit()
         return flag

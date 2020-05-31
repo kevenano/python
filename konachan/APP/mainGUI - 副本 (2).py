@@ -6,7 +6,7 @@
 #
 # WARNING! All changes made in this file will be lost!
 
-import res_rc
+
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
@@ -340,39 +340,33 @@ class Ui_MainWindow(object):
         )
 
     def page_controller(self, signal):
-        # total_page = self.table_Widget.showTotalPage()
+        total_page = self.table_Widget.showTotalPage()
         if "home" == signal[0]:
-            self.table_Widget.curPageValue = 1
+            self.table_Widget.curPage.setText("1")
         elif "pre" == signal[0]:
             # if 1 == int(signal[1]):
             # QtWidgets.QMessageBox.information(self, "提示", "已经是第一页了", QtWidgets.QMessageBox.Yes)
             # return
-            if self.table_Widget.curPageValue > 1:
-                self.table_Widget.curPageValue = self.table_Widget.curPageValue - 1
-            else:
-                self.table_Widget.curPageValue = 1
+            self.table_Widget.curPage.setText(str(int(signal[1]) - 1))
         elif "next" == signal[0]:
             # if total_page == int(signal[1]):
             # QtWidgets.QMessageBox.information(self, "提示", "已经是最后一页了", QtWidgets.QMessageBox.Yes)
             # return
-            if self.table_Widget.curPageValue < self.table_Widget.totalPageValue:
-                self.table_Widget.curPageValue = self.table_Widget.curPageValue + 1
-            else:
-                self.table_Widget.curPageValue = self.table_Widget.totalPageValue
+            self.table_Widget.curPage.setText(str(int(signal[1]) + 1))
         elif "final" == signal[0]:
-            self.table_Widget.curPageValue = self.table_Widget.totalPageValue
+            self.table_Widget.curPage.setText(str(total_page))
         elif "confirm" == signal[0]:
             # if total_page < int(signal[1]) or int(signal[1]) < 0:
             # QtWidgets.QMessageBox.information(self, "提示", "跳转页码超出范围", QtWidgets.QMessageBox.Yes)
             # return
-            self.table_Widget.curPageValue = self.table_Widget.skipPage.value()
+            self.table_Widget.curPage.setText(signal[1])
 
-        # 更新页码控制器
-        self.table_Widget.setUiText()
         self.changeTableContent()  # 改变表格内容
 
     def changeTableContent(self):
         """根据当前页改变表格的内容"""
+        cur_page = self.table_Widget.curPage.text()
+        pass
 
 
 class TableWidget(QtWidgets.QWidget):
@@ -406,79 +400,61 @@ class TableWidget(QtWidgets.QWidget):
         self.setLayout(self.__layout)
         self.setStyleSheet(style_sheet)
 
-    def setPageController(self, totalPage):
-        self.totalPageValue = totalPage
-        self.curPageValue = 1
+    def setPageController(self, page):
         """自定义页码控制器"""
         control_layout = QtWidgets.QHBoxLayout()
         homePage = QtWidgets.QPushButton("首页")
         prePage = QtWidgets.QPushButton("<上一页")
-        self.curPageLabel = QtWidgets.QLabel()
+        self.curPage = QtWidgets.QLabel("1")
         nextPage = QtWidgets.QPushButton("下一页>")
         finalPage = QtWidgets.QPushButton("尾页")
-        self.totalPageLable = QtWidgets.QLabel()
-        self.skipLable_0 = QtWidgets.QLabel()
-        self.skipPage = QtWidgets.QSpinBox()
-        self.skipPage.setMinimum(1)
-        self.skipPage.setMaximum(self.totalPageValue)
-        self.skipLabel_1 = QtWidgets.QLabel()
+        self.totalPage = QtWidgets.QLabel("共" + str(page) + "页")
+        skipLable_0 = QtWidgets.QLabel("跳到")
+        self.skipPage = QtWidgets.QLineEdit()
+        skipLabel_1 = QtWidgets.QLabel("页")
         confirmSkip = QtWidgets.QPushButton("确定")
-
         homePage.clicked.connect(self.__home_page)
         prePage.clicked.connect(self.__pre_page)
         nextPage.clicked.connect(self.__next_page)
         finalPage.clicked.connect(self.__final_page)
         confirmSkip.clicked.connect(self.__confirm_skip)
-
         control_layout.addStretch(1)
         control_layout.addWidget(homePage)
         control_layout.addWidget(prePage)
-        control_layout.addWidget(self.curPageLabel)
+        control_layout.addWidget(self.curPage)
         control_layout.addWidget(nextPage)
         control_layout.addWidget(finalPage)
-        control_layout.addWidget(self.totalPageLable)
-        control_layout.addWidget(self.skipLable_0)
+        control_layout.addWidget(self.totalPage)
+        control_layout.addWidget(skipLable_0)
         control_layout.addWidget(self.skipPage)
-        control_layout.addWidget(self.skipLabel_1)
+        control_layout.addWidget(skipLabel_1)
         control_layout.addWidget(confirmSkip)
         control_layout.addStretch(1)
         self.__layout.addLayout(control_layout)
-        self.setUiText()
-
-    def setUiText(self):
-        self.skipLable_0.setText(
-            '<html><head/><body><p><span style=" color:#a58066;">跳到:</span></p></body></html>'
-        )
-        self.skipLabel_1.setText(
-            '<html><head/><body><p><span style=" color:#a58066;">页:</span></p></body></html>'
-        )
-        self.curPageLabel.setText(
-            f'<html><head/><body><p><span style=" color:#a58066;">{self.curPageValue}</span></p></body></html>'
-        )
-        self.totalPageLable.setText(
-            f'<html><head/><body><p><span style=" color:#a58066;">共 {self.totalPageValue} 页:</span></p></body></html>'
-        )
 
     def __home_page(self):
         """点击首页信号"""
-        self.control_signal.emit(["home"])
+        self.control_signal.emit(["home", self.curPage.text()])
 
     def __pre_page(self):
         """点击上一页信号"""
-        self.control_signal.emit(["pre"])
+        self.control_signal.emit(["pre", self.curPage.text()])
 
     def __next_page(self):
         """点击下一页信号"""
-        self.control_signal.emit(["next"])
+        self.control_signal.emit(["next", self.curPage.text()])
 
     def __final_page(self):
         """尾页点击信号"""
-        self.control_signal.emit(["final"])
+        self.control_signal.emit(["final", self.curPage.text()])
 
     def __confirm_skip(self):
         """跳转页码确定"""
-        self.control_signal.emit(["confirm"])
+        self.control_signal.emit(["confirm", self.skipPage.text()])
 
-    # def showTotalPage(self):
-    #    """返回当前总页数"""
-    #    return int(self.totalPage.text()[1:-1])
+    def showTotalPage(self):
+        """返回当前总页数"""
+        return int(self.totalPage.text()[1:-1])
+
+
+import res_rc
