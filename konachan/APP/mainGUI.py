@@ -10,8 +10,9 @@ import res_rc
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
+# 主窗口
 class Ui_MainWindow(object):
-    def setupUi(self, MainWindow):
+    def setupUi(self, MainWindow, db):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(1081, 560)
         sizePolicy = QtWidgets.QSizePolicy(
@@ -94,6 +95,7 @@ class Ui_MainWindow(object):
             'font: 12pt "Agency FB";\n' 'font: 25 9pt "Microsoft YaHei";'
         )
         self.Go.setObjectName("Go")
+        self.Go.clicked.connect(lambda:)
         self.gridLayout.addWidget(self.Go, 0, 2, 1, 1)
         spacerItem3 = QtWidgets.QSpacerItem(
             20, 20, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Minimum
@@ -285,7 +287,7 @@ class Ui_MainWindow(object):
         self.gridLayout_3.addWidget(self.searchBox, 1, 0, 1, 1)
         self.verticalLayout.addLayout(self.gridLayout_3)
         self.table_Widget = TableWidget()  # 实例化表格
-        self.table_Widget.setPageController(10)  # 表格设置页码控制
+        self.table_Widget.setPageController(1)  # 表格设置页码控制
         self.table_Widget.control_signal.connect(self.page_controller)
         self.verticalLayout.addWidget(self.table_Widget)
         MainWindow.setCentralWidget(self.centralwidget)
@@ -339,6 +341,57 @@ class Ui_MainWindow(object):
             )
         )
 
+    def clickGo(self, db):
+        # 显示器清零
+        self.ResultCnt.display(int(0))
+        # unsafe 标签列表
+        unSafeList = ["~censored", "~panty", "~pussy", "~breats", "~sex", "~masturbation", "~nude"]
+        # 获取参数搜索
+        tags = self.Tags.text()  # str
+        startId = self.IDRange1.value()  # int
+        endId = self.IDRange2.value()  # int
+        order = self.Order.currentText()  # str
+        safeMode = self.SafeMode.isChecked()  # bool
+        # print(type(tags), type(startId), type(endId), type(order), type(safeMode))
+        # 构造mysql查询参数
+        tags = tags.split(",")
+        tags_F = []  # 包含标签
+        tags_R = []  # 不包含标签
+        if safeMode is True:
+            tags_R = copy.copy(unSafeList)
+        for tag in tags:
+            if tag != " ":
+                if tag.startswith(r"~"):
+                    tags_R.append(tag)
+                else:
+                    tags_F.append(tag)
+        if endId < startId:
+            t = endId
+            endId = startId
+            startId = t
+            del t
+        if endId == 0 and startId == 0:
+            startId = 1
+            endId = 99999999
+        sql = "SELECT * FROM main WHERE "
+        for item in tags_F:
+            sql = sql + f"tags LIKE '%{item}%' AND "
+        for item in tags_R:
+            sql = sql + f"tags NOT LIKE '%{item[1:]}%' AND "
+        sql = sql + f"id >= {startId} AND id <= {endId} "
+        sql = sql + f"ORDER BY {order}"
+        print(sql)
+        # 执行sql
+        flag = db.execute(sql)
+        if flag != 1:
+            print(flag.args[0])
+            resultsCnt = []
+        else:
+            resultsCnt = db.cursor.rowcount
+            resultsList = db.fetchall()
+        # 显示结果数量
+        self.ResultCnt.display(resultsCnt)
+
     def page_controller(self, signal):
         # total_page = self.table_Widget.showTotalPage()
         if "home" == signal[0]:
@@ -373,16 +426,19 @@ class Ui_MainWindow(object):
 
     def changeTableContent(self):
         """根据当前页改变表格的内容"""
+        pass
 
 
+# 带页码控制的表格
 class TableWidget(QtWidgets.QWidget):
     control_signal = QtCore.pyqtSignal(list)
 
+    # def __init__(self, *args, **kwargs):
+    #     super(TableWidget, self).__init__(*args, **kwargs)
+    #     self.__init_ui()
+
     def __init__(self, *args, **kwargs):
         super(TableWidget, self).__init__(*args, **kwargs)
-        self.__init_ui()
-
-    def __init_ui(self):
         style_sheet = """
             QtWidgets.QTableWidget {
                 border: none;
@@ -446,6 +502,7 @@ class TableWidget(QtWidgets.QWidget):
         self.setUiText()
 
     def setUiText(self):
+        self.skipPage.setMaximum(self.totalPageValue)
         self.skipLable_0.setText(
             '<html><head/><body><p><span style=" color:#a58066;">跳到:</span></p></body></html>'
         )
