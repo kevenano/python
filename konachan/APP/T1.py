@@ -5,6 +5,7 @@ import copy
 import math
 import res_rc
 import os
+from selenium import webdriver
 
 
 # unsafe 标签列表
@@ -13,13 +14,24 @@ unSafeList = [
     "~panty",
     "~pussy",
     "~breats",
+    "~breasts",
     "~sex",
     "~masturbation",
     "~nude",
+    "~ass",
+    "~nipple",
+    "~underwear",
+    "~panties",
+    "~panty",
+    "~no_bra",
+    "~skirt_lift"
 ]
 
 # 缩略图目录
 thumbnailPath = r"D:\konachan\thumbnail"
+
+# 源文件目录
+originPath = r"I:\image"
 
 
 # 数据库类
@@ -118,8 +130,9 @@ class Ui_MainWindow(object):
     resultsList = []
     currentInd = 0
 
-    def setupUi(self, MainWindow, db, dui):
+    def setupUi(self, MainWindow, db, dui, browser):
         self.dui = dui
+        self.browser = browser
         """布置主控件及connect函数"""
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(1081, 560)
@@ -544,7 +557,18 @@ class Ui_MainWindow(object):
             if self.currentInd < len(self.resultsList):
                 self.dui.updateValue(self.resultsList[self.currentInd])
                 self.dui.updateBox()
-
+            return
+        elif "show" == signal[0]:
+            self.currentInd = (
+                (self.table_Widget.curPageValue - 1) * self.table_Widget.itemPerPage
+                + self.table_Widget.table.currentRow() * self.table_Widget.columnCount
+                + self.table_Widget.table.currentColumn()
+            )
+            # print(self.table_Widget.curPageValue, self.currentInd)
+            if self.currentInd < len(self.resultsList):
+                self.dui.updateValue(self.resultsList[self.currentInd])
+                self.dui.updateBox()
+                self.showImage()
         # 更新页码控制器
         self.table_Widget.setUiText()
         # 改变表格内容
@@ -593,6 +617,49 @@ class Ui_MainWindow(object):
         self.table_Widget.setUiText()
         self.changeTableContent()
 
+    def showImage(self):
+        imgID = self.resultsList[self.currentInd][0]
+        try:
+            imgType = self.resultsList[self.currentInd][10].split(".")[-1]
+        except Exception:
+            return
+        imgYear = 0
+        # 判断年份
+        if imgID >= 1 and imgID <= 50000:
+            imgYear = 2009
+        elif imgID >= 50001 and imgID <= 91915:
+            imgYear = 2010
+        elif imgID >= 91916 and imgID <= 110000:
+            imgYear = 2011
+        elif imgID >= 110001 and imgID <= 151836:
+            imgYear = 2012
+        elif imgID >= 151840 and imgID <= 175606:
+            imgYear = 2013
+        elif imgID >= 175607 and imgID <= 193960:
+            imgYear = 2014
+        elif imgID >= 193961 and imgID <= 210000:
+            imgYear = 2015
+        elif imgID >= 210001 and imgID <= 233400:
+            imgYear = 2016
+        elif imgID >= 233401 and imgID <= 257743:
+            imgYear = 2017
+        elif imgID >= 257744 and imgID <= 276246:
+            imgYear = 2018
+        elif imgID >= 276247 and imgID <= 297318:
+            imgYear = 2019
+        elif imgID >= 297319 and imgID <= 999999:
+            imgYear = 2020
+        # 构造路径
+        imgPath = os.path.join(originPath, str(imgYear), str(imgID)+"."+imgType)
+        if os.path.isfile(imgPath) is False:
+            return
+        imgUrl = r"file:///"+imgPath
+        try:
+            self.browser.get(imgUrl)
+        except Exception:
+            self.browser = webdriver.Firefox()
+            self.browser.get(imgUrl)
+        
 
 # 带页码控制的表格
 class TableWidget(QtWidgets.QWidget):
@@ -618,7 +685,7 @@ class TableWidget(QtWidgets.QWidget):
                 max-width: 30px
             }
         """
-        self.table = QtWidgets.QTableWidget(4, 6)  # 3 行 5 列的表格
+        self.table = QtWidgets.QTableWidget(2, 3)  # 3 行 5 列的表格
         self.rowCount = self.table.rowCount()
         self.columnCount = self.table.columnCount()
         self.itemPerPage = self.rowCount * self.columnCount
@@ -630,6 +697,7 @@ class TableWidget(QtWidgets.QWidget):
         self.setLayout(self.__layout)
         self.setStyleSheet(style_sheet)
         self.table.currentCellChanged.connect(self.__check_cell)
+        self.table.cellDoubleClicked.connect(self.__show_ori)
 
     def setPageController(self, totalPage):
         self.totalPageValue = totalPage
@@ -708,6 +776,10 @@ class TableWidget(QtWidgets.QWidget):
     def __check_cell(self):
         """查看单元格详情"""
         self.control_signal.emit(["check"])
+
+    def __show_ori(self):
+        """查看原图"""
+        self.control_signal.emit(["show"])
 
 
 # 详情窗
@@ -1325,12 +1397,13 @@ if __name__ == "__main__":
     db = DB("localhost", "root", "qo4hr[Pxm7W5", "konachan")
     db.connect()
     # 再启动GUI
+    browser = webdriver.Firefox()
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     detailWindow = QtWidgets.QDialog()
     dui = Ui_Detail()
     ui = Ui_MainWindow()
-    ui.setupUi(MainWindow, db, dui)
+    ui.setupUi(MainWindow, db, dui, browser)
     MainWindow.show()
     dui.setupUi(detailWindow)
     detailWindow.show()
