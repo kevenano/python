@@ -10,7 +10,6 @@ from selenium import webdriver
 from mainWidget import Ui_MainWindow
 from detailWidget import Ui_detailWidget
 
-
 # block 标签列表
 blockList = [
     "~censored",
@@ -128,33 +127,34 @@ class DB:
 
 
 # 主窗口
-class Ui_Main(QtCore.QObject, Ui_MainWindow):
+class Ui_Main(Ui_MainWindow):
     """主窗口"""
     resultsList = []
     currentInd = 0
-    isSearching = False
 
-    def setupUi(self, MainWindow, db, dui, browser):
+    def setupUi(self, MainWindow):
         """布置控件"""
         super(Ui_Main, self).setupUi(MainWindow)
-        self.Go.clicked.connect(lambda: self.clickGo(db))
-        self.Tags.returnPressed.connect(lambda: self.clickGo(db))
+        self.Go.clicked.connect(self.clickGo)
+        self.Tags.returnPressed.connect(self.clickGo)
         self.table_Widget = TableWidget()  # 实例化表格
         self.table_Widget.setPageController(1)  # 表格设置页码控制
         self.table_Widget.control_signal.connect(self.page_controller)
         self.verticalLayout_2.addWidget(self.table_Widget)
 
-        self.dui = dui
+        self.dui = Ui_Detail()
+        self.dui.setupUi(detailWindow)
         self.dui.control_signal.connect(self.show_controller)
-        self.browser = browser
 
         self.retranslateUi(MainWindow)
         self.Order.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
+        self.browser = webdriver.Firefox()
+        self.browser.fullscreen_window()
 
-    def clickGo(self, db):
+    def clickGo(self):
         """搜索数据库，获取结果"""
-        global blockList
+        global blockList, db
         # 显示器清零
         self.ResultCnt.display(int(0))
         # 获取参数搜索
@@ -162,10 +162,10 @@ class Ui_Main(QtCore.QObject, Ui_MainWindow):
         startId = self.IDRange1.value()  # int
         endId = self.IDRange2.value()  # int
         order = self.Order.currentText()  # str
-        modeS = self.Mode_S.isChecked()     # bool
-        modeQ = self.Mode_Q.isChecked()     # bool
-        modeE = self.Mode_E.isChecked()     # bool
-        EBL = self.EBL.isChecked()          # bool
+        modeS = self.Mode_S.isChecked()  # bool
+        modeQ = self.Mode_Q.isChecked()  # bool
+        modeE = self.Mode_E.isChecked()  # bool
+        EBL = self.EBL.isChecked()  # bool
         # print(type(tags), type(startId), type(endId), type(order), type(safeMode))
         # 构造mysql查询参数
         tags = tags.split(",")
@@ -200,7 +200,7 @@ class Ui_Main(QtCore.QObject, Ui_MainWindow):
         if modeE is True:
             modeList.append("e")
         if len(modeList) > 0:
-            sql = sql + "rating IN "+str(tuple(modeList)).replace(",)", ")")+" AND "
+            sql = sql + "rating IN " + str(tuple(modeList)).replace(",)", ")") + " AND "
         sql = sql + f"id >= {startId} AND id <= {endId} "
         sql = sql + f"ORDER BY {order}"
         print(sql)
@@ -225,6 +225,7 @@ class Ui_Main(QtCore.QObject, Ui_MainWindow):
             self.Go.setDisabled(True)
 
     def page_controller(self, signal):
+        global detailWindow
         """页码控制模块"""
         # total_page = self.table_Widget.showTotalPage()
         if "home" == signal[0]:
@@ -264,6 +265,8 @@ class Ui_Main(QtCore.QObject, Ui_MainWindow):
                 self.dui.updateBox()
             return
         elif "show" == signal[0]:
+            if detailWindow.isVisible() is False:
+                detailWindow.show()
             self.currentInd = (
                 (self.table_Widget.curPageValue - 1) * self.table_Widget.itemPerPage
                 + self.table_Widget.table.currentRow() * self.table_Widget.columnCount
@@ -364,6 +367,7 @@ class Ui_Main(QtCore.QObject, Ui_MainWindow):
             self.browser.get(imgUrl)
         except Exception:
             self.browser = webdriver.Firefox()
+            self.browser.fullscreen_window()
             self.browser.get(imgUrl)
 
     def show_controller(self, signal):
@@ -373,10 +377,14 @@ class Ui_Main(QtCore.QObject, Ui_MainWindow):
             if self.currentInd < 0:
                 self.currentInd = 1
                 return
+            if self.currentInd >= len(self.resultsList):
+                self.currentInd = len(self.resultsList)
+                return
             page = math.floor(self.currentInd / self.table_Widget.itemPerPage) + 1
-            row = math.floor((
-                self.currentInd % self.table_Widget.itemPerPage
-            ) / self.table_Widget.columnCount)
+            row = math.floor(
+                (self.currentInd % self.table_Widget.itemPerPage)
+                / self.table_Widget.columnCount
+            )
             column = (
                 self.currentInd % self.table_Widget.itemPerPage
             ) % self.table_Widget.columnCount
@@ -390,9 +398,10 @@ class Ui_Main(QtCore.QObject, Ui_MainWindow):
                 self.currentInd = len(self.resultsList)
                 return
             page = math.floor(self.currentInd / self.table_Widget.itemPerPage) + 1
-            row = math.floor((
-                self.currentInd % self.table_Widget.itemPerPage
-            ) / self.table_Widget.columnCount)
+            row = math.floor(
+                (self.currentInd % self.table_Widget.itemPerPage)
+                / self.table_Widget.columnCount
+            )
             column = (
                 self.currentInd % self.table_Widget.itemPerPage
             ) % self.table_Widget.columnCount
@@ -405,6 +414,7 @@ class Ui_Main(QtCore.QObject, Ui_MainWindow):
 # 多线程搜索，防假死
 class goThread(QtCore.QThread):
     """多线程搜索"""
+
     control_signal = QtCore.pyqtSignal(list)
 
     def __init__(self, db, sql):
@@ -432,6 +442,7 @@ class goThread(QtCore.QThread):
 # 详情窗
 class Ui_Detail(QtCore.QObject, Ui_detailWidget):
     """详情窗"""
+
     control_signal = QtCore.pyqtSignal(list)
 
     def setupUi(self, detailWindow):
@@ -507,9 +518,23 @@ class Ui_Detail(QtCore.QObject, Ui_detailWidget):
     def __next_item(self):
         self.control_signal.emit(["next"])
 
+    # def closeEvent(self, event):
+    #     reply = QtWidgets.QMessageBox.question(
+    #         self,
+    #         "(｀・ω・´)",
+    #         "Sure to quit?",
+    #         QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+    #         QtWidgets.QMessageBox.No,
+    #     )
+    #     if reply == QtWidgets.QMessageBox.Yes:
+    #         event.accept()
+    #     else:
+    #         event.ignore()
+
 
 # 带页码控制的表格
 class TableWidget(QtWidgets.QWidget):
+    """带页码控制的表格"""
     control_signal = QtCore.pyqtSignal(list)
 
     # def __init__(self, *args, **kwargs):
@@ -542,7 +567,9 @@ class TableWidget(QtWidgets.QWidget):
         self.__layout = QtWidgets.QVBoxLayout()
         self.__layout.addWidget(self.table)
         self.setLayout(self.__layout)
-        self.setStyleSheet("background-image: url(:/picture/source/konachan_background.png);")
+        self.setStyleSheet(
+            "background-image: url(:/picture/source/konachan_background.png);"
+        )
         self.table.currentCellChanged.connect(self.__check_cell)
         self.table.cellDoubleClicked.connect(self.__show_ori)
 
@@ -588,7 +615,7 @@ class TableWidget(QtWidgets.QWidget):
         control_layout.addWidget(self.skipLabel_1)
         control_layout.addWidget(self.confirmSkipBt)
         control_layout.addStretch(1)
-    
+
         self.__layout.addLayout(control_layout)
         self.setUiText()
 
@@ -636,21 +663,26 @@ class TableWidget(QtWidgets.QWidget):
         self.control_signal.emit(["show"])
 
 
+# 扫尾工作
+def cleanup():
+    """扫尾"""
+    # detailWindow.close()
+    db.close()
+    print("db closed")
+
+
 if __name__ == "__main__":
+    global detailWindow, db
     # 先连接到数据库
     db = DB("localhost", "root", "qo4hr[Pxm7W5", "konachan")
     db.connect()
     # 再启动GUI
-    browser = webdriver.Firefox()
     app = QtWidgets.QApplication(sys.argv)
-    MainWindow = QtWidgets.QMainWindow()
     detailWindow = QtWidgets.QDialog()
-    dui = Ui_Detail()
-    dui.setupUi(detailWindow)
+    MainWindow = QtWidgets.QMainWindow()
     ui = Ui_Main()
-    ui.setupUi(MainWindow, db, dui, browser)
+    ui.setupUi(MainWindow)
     MainWindow.show()
-    detailWindow.show()
-    # 断开数据库
-    db.close()
-    sys.exit(app.exec_())
+    # clean up
+    app.aboutToQuit.connect(cleanup)
+    app.exec_()
