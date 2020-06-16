@@ -5,10 +5,12 @@ import copy
 import math
 import res_rc
 import os
-import time
+# from hashlib import sha256
 from selenium import webdriver
 from mainWidget import Ui_MainWindow
 from detailWidget import Ui_detailWidget
+from settingDialog import Ui_settingDialog
+
 
 # block 标签列表
 blockList = [
@@ -28,11 +30,10 @@ blockList = [
     "~skirt_lift",
 ]
 
-# 缩略图目录
-thumbnailPath = r"D:\konachan\thumbnail"
-
-# 源文件目录
-originPath = r"I:\image"
+# 全局变量
+thumbnailPath = None
+originPath = None
+db = None
 
 
 # 数据库类
@@ -127,10 +128,28 @@ class DB:
 
 
 # 主窗口
-class Ui_Main(Ui_MainWindow):
+class Ui_Main(QtCore.QObject, Ui_MainWindow):
     """主窗口"""
+
+    control_signal = QtCore.pyqtSignal(list)
     resultsList = []
     currentInd = 0
+
+    def get_Setting(self):
+        self.settingDialog = QtWidgets.QDialog()
+        self.sui = Ui_Setting()
+        self.sui.setupUi(self.settingDialog)
+        self.sui.control_signal.connect(self.__setting_control)
+        self.settingDialog.open()
+
+    def __setting_control(self, signal):
+        self.settingDialog.close()
+        self.sui.control_signal.disconnect(self.__setting_control)
+        self.control_signal.emit(signal)
+
+    def reLogin(self):
+        self.sui.control_signal.connect(self.settingDialog.close)
+        self.settingDialog.open()
 
     def setupUi(self, MainWindow):
         """布置控件"""
@@ -141,6 +160,8 @@ class Ui_Main(Ui_MainWindow):
         self.table_Widget.setPageController(1)  # 表格设置页码控制
         self.table_Widget.control_signal.connect(self.page_controller)
         self.verticalLayout_2.addWidget(self.table_Widget)
+
+        self.actionLogin.triggered.connect(self.reLogin)
 
         self.dui = Ui_Detail()
         self.dui.setupUi(detailWindow)
@@ -532,9 +553,99 @@ class Ui_Detail(QtCore.QObject, Ui_detailWidget):
     #         event.ignore()
 
 
+# 设置窗
+class Ui_Setting(QtCore.QObject, Ui_settingDialog):
+    """设置窗"""
+
+    control_signal = QtCore.pyqtSignal(list)
+
+    def setupUi(self, settingDialog):
+        """布置控件"""
+        super(Ui_Setting, self).setupUi(settingDialog)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+        self.choose_originPath.clicked.connect(self.__origing_path)
+        self.choose_thumbPath.clicked.connect(self.__thumb_path)
+
+    def __origing_path(self):
+        self.originPath = QtWidgets.QFileDialog.getExistingDirectory(
+            None, "Path to orignal file", os.getcwd()
+        )
+        self.path_origin.setText(self.originPath)
+        self.path_origin.setModified(True)
+        # self.path_origin.setReadOnly()
+
+    def __thumb_path(self):
+        self.thumbnailPath = QtWidgets.QFileDialog.getExistingDirectory(
+            None, "Path to thumbnail", os.getcwd()
+        )
+        self.path_thumb.setText(self.thumbnailPath)
+        self.path_thumb.setModified(True)
+        # self.path_thumb.setReadOnly()
+
+    def accept(self):
+        global db, originPath, thumbnailPath
+        print("accept")
+        if (
+            self.input_host.isModified()
+            and self.input_user.isModified()
+            and self.input_pass.isModified()
+            and self.input_data.isModified()
+            and self.path_origin.isModified()
+            and self.path_thumb.isModified()
+        ) is False:
+            print("Fail!")
+            QtWidgets.QMessageBox.about(
+                None, "(｀・ω・´)", "Access denied!\nPlease check your input!"
+            )
+            self.control_signal.emit([-1])
+        else:
+            self.db_host = self.input_host.text()
+            self.db_User = self.input_user.text()
+            self.db_Pass = self.input_pass.text()
+            self.db_data = self.input_data.text()
+            self.originPath = self.path_origin.text()
+            self.thumbnailPath = self.path_thumb.text()
+
+            """路径检查"""
+            if (
+                os.path.isdir(self.originPath) and os.path.isdir(self.thumbnailPath)
+            ) is False:
+                QtWidgets.QMessageBox.about(None, "(｀・ω・´)", "Fake path!")
+                self.control_signal.emit([-1])
+            else:
+                try:
+                    """尝试链接至数据库"""
+                    db_temp = DB(self.db_host, self.db_User, self.db_Pass, self.db_data)
+                    db_temp.connect()
+                    """测试链接成功后更新原数据库链接"""
+                    db_temp.close()
+                    del db_temp
+                    if db is not None:
+                        db.close()
+                    db = DB(self.db_host, self.db_User, self.db_Pass, self.db_data)
+                    db.connect()
+                    """更新路径"""
+                    originPath = self.originPath
+                    thumbnailPath = self.thumbnailPath
+                    self.control_signal.emit([1])
+                except Exception as e:
+                    print(str(e))
+                    QtWidgets.QMessageBox.about(
+                        None, "(｀・ω・´)", "SQL connection error!"
+                    )
+                    # db = None
+                    self.control_signal.emit([-1])
+
+    def reject(self):
+        print("reject")
+        self.control_signal.emit([0])
+
+
 # 带页码控制的表格
 class TableWidget(QtWidgets.QWidget):
     """带页码控制的表格"""
+
     control_signal = QtCore.pyqtSignal(list)
 
     # def __init__(self, *args, **kwargs):
@@ -667,11 +778,12 @@ class TableWidget(QtWidgets.QWidget):
 def cleanup():
     """扫尾"""
     # detailWindow.close()
-    db.close()
+    if db is not None:
+        db.close()
     print("db closed")
 
 
-if __name__ == "__main__":
+def main():
     global detailWindow, db
     # 先连接到数据库
     db = DB("localhost", "root", "qo4hr[Pxm7W5", "konachan")
@@ -686,3 +798,55 @@ if __name__ == "__main__":
     # clean up
     app.aboutToQuit.connect(cleanup)
     app.exec_()
+
+
+class testWindow(QtWidgets.QMainWindow):
+    def __init__(self, parent=None):
+        super(testWindow, self).__init__(parent)
+        # self.resize(350, 300)
+        self.dialog_t = QtWidgets.QDialog()
+        self.ui_t = Ui_Setting()
+        self.ui_t.setupUi(self.dialog_t)
+        self.ui_t.control_signal.connect(self.__control)
+
+        # self.btn = QtWidgets.QPushButton(self)
+        # self.btn.move(50, 50)
+        # self.btn.clicked.connect(self.showDialog)
+        self.showDialog()
+
+    def showDialog(self):
+        self.dialog_t.open()
+
+    def __control(self, signal):
+        if signal[0] == 1 or signal[0] == 0:
+            self.dialog_t.close()
+
+
+def test():
+    app = QtWidgets.QApplication(sys.argv)
+    ui = testWindow()
+    ui.show()
+    sys.exit(app.exec_())
+
+
+def main_control(signal):
+    global MainApp, MainWindow, MainUi, detailWindow
+    if signal[0] == 1:
+        MainUi.setupUi(MainWindow)
+        MainWindow.show()
+
+
+def test2():
+    global MainApp, MainWindow, MainUi, detailWindow
+    MainApp = QtWidgets.QApplication(sys.argv)
+    detailWindow = QtWidgets.QDialog()
+    MainWindow = QtWidgets.QMainWindow()
+    MainUi = Ui_Main()
+    MainUi.control_signal.connect(main_control)
+    MainUi.get_Setting()
+    MainApp.aboutToQuit.connect(cleanup)
+    MainApp.exec_()
+
+
+if __name__ == "__main__":
+    test2()

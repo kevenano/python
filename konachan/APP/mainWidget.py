@@ -365,10 +365,16 @@ class Ui_MainWindow(object):
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 1029, 22))
         self.menubar.setObjectName("menubar")
+        self.menu_o = QtWidgets.QMenu(self.menubar)
+        self.menu_o.setObjectName("menu_o")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
+        self.actionLogin = QtWidgets.QAction(MainWindow)
+        self.actionLogin.setObjectName("actionLogin")
+        self.menu_o.addAction(self.actionLogin)
+        self.menubar.addAction(self.menu_o.menuAction())
 
         self.retranslateUi(MainWindow)
         self.Order.setCurrentIndex(0)
@@ -435,6 +441,8 @@ class Ui_MainWindow(object):
                 '<html><head/><body><p><span style=" font-size:10pt; font-weight:600; color:#a58066;">Enable Block List</span></p></body></html>',
             )
         )
+        self.menu_o.setTitle(_translate("MainWindow", "ヾ(=･ω･=)o"))
+        self.actionLogin.setText(_translate("MainWindow", "Login"))
 
 
 import res_rc

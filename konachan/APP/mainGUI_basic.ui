@@ -797,8 +797,20 @@ color: rgb(165, 128, 102);</string>
      <height>22</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menu_o">
+    <property name="title">
+     <string>ヾ(=･ω･=)o</string>
+    </property>
+    <addaction name="actionLogin"/>
+   </widget>
+   <addaction name="menu_o"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionLogin">
+   <property name="text">
+    <string>Login</string>
+   </property>
+  </action>
  </widget>
  <resources>
   <include location="res.qrc"/>
