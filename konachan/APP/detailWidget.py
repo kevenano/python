@@ -435,5 +435,8 @@ class Ui_detailWidget(object):
         self.label_15.setText(_translate("detailWidget", "<html><head/><body><p align=\"right\"><span style=\" font-size:12pt; font-weight:600;\">Tags:</span></p></body></html>"))
         self.groupBox_2.setTitle(_translate("detailWidget", "ControlBox"))
         self.previous_Button.setText(_translate("detailWidget", "Previous"))
+        self.previous_Button.setShortcut(_translate("detailWidget", "Left"))
         self.next_Button.setText(_translate("detailWidget", "Next"))
+        self.next_Button.setShortcut(_translate("detailWidget", "Right"))
+        self.Favorite.setShortcut(_translate("detailWidget", "F"))
 import res_rc

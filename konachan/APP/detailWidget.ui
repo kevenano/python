@@ -847,6 +847,9 @@ p, li { white-space: pre-wrap; }
        <property name="text">
         <string>Previous</string>
        </property>
+       <property name="shortcut">
+        <string>Left</string>
+       </property>
       </widget>
      </item>
      <item row="0" column="1">
@@ -872,6 +875,9 @@ p, li { white-space: pre-wrap; }
        </property>
        <property name="text">
         <string>Next</string>
+       </property>
+       <property name="shortcut">
+        <string>Right</string>
        </property>
       </widget>
      </item>
@@ -907,6 +913,9 @@ p, li { white-space: pre-wrap; }
          <width>20</width>
          <height>20</height>
         </size>
+       </property>
+       <property name="shortcut">
+        <string>F</string>
        </property>
        <property name="checkable">
         <bool>true</bool>
