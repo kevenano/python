@@ -2,6 +2,8 @@
   <qresource prefix="picture">
     <file>source/konachan_background.png</file>
     <file>source/konachan_logo.png</file>
+    <file>source/heart_2.png</file>
+    <file>source/heart.png</file>
     <file>source/konachan_logo_small.png</file>
   </qresource>
 </RCC>
