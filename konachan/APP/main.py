@@ -5,7 +5,6 @@ import copy
 import math
 import res_rc
 import os
-# from hashlib import sha256
 from selenium import webdriver
 from mainWidget import Ui_MainWindow
 from detailWidget import Ui_detailWidget
@@ -100,7 +99,7 @@ class DB:
         sql = """drop table """
         for item in tablesName:
             sql = sql + "`" + item + "`" + ","
-        sql = sql[0 : len(sql) - 1]
+        sql = sql[0: len(sql) - 1]
         flag = self.execute(sql)
         self.commit()
         return flag
@@ -124,6 +123,7 @@ class DB:
         sql = sql + "set " + "`" + filed + "`" + "=%s "
         sql = sql + whereClause
         flag = self.execute(sql, value)
+        self.commit()
         return flag
 
 
@@ -179,14 +179,15 @@ class Ui_Main(QtCore.QObject, Ui_MainWindow):
         # 显示器清零
         self.ResultCnt.display(int(0))
         # 获取参数搜索
-        tags = self.Tags.text()  # str
-        startId = self.IDRange1.value()  # int
-        endId = self.IDRange2.value()  # int
-        order = self.Order.currentText()  # str
-        modeS = self.Mode_S.isChecked()  # bool
-        modeQ = self.Mode_Q.isChecked()  # bool
-        modeE = self.Mode_E.isChecked()  # bool
-        EBL = self.EBL.isChecked()  # bool
+        tags = self.Tags.text()             # str
+        startId = self.IDRange1.value()     # int
+        endId = self.IDRange2.value()       # int
+        order = self.Order.currentText()    # str
+        modeS = self.Mode_S.isChecked()     # bool
+        modeQ = self.Mode_Q.isChecked()     # bool
+        modeE = self.Mode_E.isChecked()     # bool
+        modeF = self.Favorite.isChecked()   # bool
+        EBL = self.EBL.isChecked()          # bool
         # print(type(tags), type(startId), type(endId), type(order), type(safeMode))
         # 构造mysql查询参数
         tags = tags.split(",")
@@ -209,11 +210,20 @@ class Ui_Main(QtCore.QObject, Ui_MainWindow):
         if endId == 0 and startId == 0:
             startId = 1
             endId = 99999999
-        sql = "SELECT * FROM main WHERE "
-        for item in tags_F:
-            sql = sql + f"tags LIKE '%{item}%' AND "
-        for item in tags_R:
-            sql = sql + f"tags NOT LIKE '%{item[1:]}%' AND "
+        """sql头"""
+        sql = "SELECT * FROM main,mark WHERE main.id=mark.id AND "
+        """mark部分"""
+        # favorite
+        if modeF is True:
+            sql = sql+"""mark.favorite="true" AND """
+        """tags部分"""
+        if len(tags_F) > 0:
+            for item in tags_F:
+                sql = sql + f"main.tags LIKE '%{item}%' AND "
+        if len(tags_R) > 0:
+            for item in tags_R:
+                sql = sql + f"main.tags NOT LIKE '%{item[1:]}%' AND "
+        """rating部分"""
         if modeS is True:
             modeList.append("s")
         if modeQ is True:
@@ -221,18 +231,19 @@ class Ui_Main(QtCore.QObject, Ui_MainWindow):
         if modeE is True:
             modeList.append("e")
         if len(modeList) > 0:
-            sql = sql + "rating IN " + str(tuple(modeList)).replace(",)", ")") + " AND "
-        sql = sql + f"id >= {startId} AND id <= {endId} "
-        sql = sql + f"ORDER BY {order}"
+            sql = sql + "main.rating IN " + str(tuple(modeList)).replace(",)", ")") + " AND "
+        """id范围及排序方法"""
+        sql = sql + f"main.id >= {startId} AND main.id <= {endId} "
+        sql = sql + f"ORDER BY main.{order}"
         print(sql)
         # 创建线程
-        self.thread = goThread(db, sql)
+        self.thread = goThread(sql)
         self.thread.control_signal.connect(self.searchResult)
         self.thread.start()
 
     def searchResult(self, signal):
         if signal[0] == 1:
-            self.resultsList = signal[2]
+            self.resultsList = list(signal[2])
             resultsCnt = signal[1]
             # 显示结果数量
             self.ResultCnt.display(resultsCnt)
@@ -396,10 +407,10 @@ class Ui_Main(QtCore.QObject, Ui_MainWindow):
         if "previous" == signal[0]:
             self.currentInd = self.currentInd - 1
             if self.currentInd < 0:
-                self.currentInd = 1
+                self.currentInd = 0
                 return
             if self.currentInd >= len(self.resultsList):
-                self.currentInd = len(self.resultsList)
+                self.currentInd = len(self.resultsList)-1
                 return
             page = math.floor(self.currentInd / self.table_Widget.itemPerPage) + 1
             row = math.floor(
@@ -416,7 +427,7 @@ class Ui_Main(QtCore.QObject, Ui_MainWindow):
         elif "next" == signal[0]:
             self.currentInd = self.currentInd + 1
             if self.currentInd >= len(self.resultsList):
-                self.currentInd = len(self.resultsList)
+                self.currentInd = len(self.resultsList)-1
                 return
             page = math.floor(self.currentInd / self.table_Widget.itemPerPage) + 1
             row = math.floor(
@@ -430,6 +441,14 @@ class Ui_Main(QtCore.QObject, Ui_MainWindow):
             self.refreshTable()
             self.table_Widget.table.setCurrentCell(row, column)
             self.showImage()
+        elif "set_favorite" == signal[0]:
+            self.resultsList[self.currentInd] = list(self.resultsList[self.currentInd])
+            self.resultsList[self.currentInd][-1] = "true"
+            db.update("mark", "favorite", "true", f"WHERE mark.id={self.resultsList[self.currentInd][0]}")
+        elif "dis_favorite" == signal[0]:
+            self.resultsList[self.currentInd] = list(self.resultsList[self.currentInd])
+            self.resultsList[self.currentInd][-1] = "false"
+            db.update("mark", "favorite", "false", f"WHERE mark.id={self.resultsList[self.currentInd][0]}")
 
 
 # 多线程搜索，防假死
@@ -438,25 +457,25 @@ class goThread(QtCore.QThread):
 
     control_signal = QtCore.pyqtSignal(list)
 
-    def __init__(self, db, sql):
+    def __init__(self, sql):
         super(goThread, self).__init__()
-        self.db = db
         self.sql = sql
 
     def __del__(self):
         self.wait()
 
     def run(self):
+        global db
         self.control_signal.emit([0])  # 发送信号，disable搜索按钮
         # 执行sql
         resultsList = []
-        flag = self.db.execute(self.sql)
+        flag = db.execute(self.sql)
         if flag != 1:
-            print(flag.args[0])
+            print(flag.args[0], flag.args[1])
             resultsCnt = 0
         else:
-            resultsCnt = self.db.cursor.rowcount
-            resultsList = self.db.fetchall()
+            resultsCnt = db.cursor.rowcount
+            resultsList = db.fetchall()
         self.control_signal.emit([1, resultsCnt, resultsList])  # 更新信号
 
 
@@ -465,27 +484,29 @@ class Ui_Detail(QtCore.QObject, Ui_detailWidget):
     """详情窗"""
 
     control_signal = QtCore.pyqtSignal(list)
+    ID_Value = 0
+    Tags_Value = ""
+    Created_At_Value = 0
+    Created_ID_Value = 0
+    Author_Value = ""
+    Score_Value = 0
+    MD5_Value = ""
+    File_Size_Value = 0
+    Rating_Value = ""
+    Has_Children_Value = ""
+    Parent_ID_Value = 0
+    Status_Value = ""
+    Width_Value = 0
+    Height_Value = 0
+    Favorite_Value = ""
 
     def setupUi(self, detailWindow):
         """布置控件"""
         super(Ui_Detail, self).setupUi(detailWindow)
-        self.ID_Value = 0
-        self.Tags_Value = ""
-        self.Created_At_Value = 0
-        self.Created_ID_Value = 0
-        self.Author_Value = ""
-        self.Score_Value = 0
-        self.MD5_Value = ""
-        self.File_Size_Value = 0
-        self.Rating_Value = ""
-        self.Has_Children_Value = ""
-        self.Parent_ID_Value = 0
-        self.Status_Value = ""
-        self.Width_Value = 0
-        self.Height_Value = 0
         self.updateBox()
         self.previous_Button.clicked.connect(self.__previous_item)
         self.next_Button.clicked.connect(self.__next_item)
+        self.Favorite.clicked.connect(self.__favorite_change)
 
     def updateValue(self, valueList):
         self.ID_Value = valueList[0]
@@ -502,6 +523,7 @@ class Ui_Detail(QtCore.QObject, Ui_detailWidget):
         self.Status_Value = valueList[28]
         self.Width_Value = valueList[29]
         self.Height_Value = valueList[30]
+        self.Favorite_Value = valueList[-1]
 
     def updateBox(self):
         self.ID_Box.setText(str(self.ID_Value))
@@ -532,12 +554,24 @@ class Ui_Detail(QtCore.QObject, Ui_detailWidget):
         self.Width_Box.setFontPointSize(12)
         self.Height_Box.setText(str(self.Height_Value))
         self.Height_Box.setFontPointSize(12)
+        if self.Favorite_Value == "true":
+            self.Favorite.setChecked(True)
+        else:
+            self.Favorite.setChecked(False)
 
     def __previous_item(self):
         self.control_signal.emit(["previous"])
 
     def __next_item(self):
         self.control_signal.emit(["next"])
+
+    def __favorite_change(self):
+        if self.Favorite_Value == "true":
+            self.Favorite_Value = "false"
+            self.control_signal.emit(["dis_favorite"])
+        else:
+            self.Favorite_Value = "true"
+            self.control_signal.emit(["set_favorite"])
 
     # def closeEvent(self, event):
     #     reply = QtWidgets.QMessageBox.question(
@@ -598,7 +632,7 @@ class Ui_Setting(QtCore.QObject, Ui_settingDialog):
             QtWidgets.QMessageBox.about(
                 None, "(｀・ω・´)", "Access denied!\nPlease check your input!"
             )
-            self.control_signal.emit([-1])
+            # self.control_signal.emit([-1])
         else:
             self.db_host = self.input_host.text()
             self.db_User = self.input_user.text()
@@ -612,7 +646,7 @@ class Ui_Setting(QtCore.QObject, Ui_settingDialog):
                 os.path.isdir(self.originPath) and os.path.isdir(self.thumbnailPath)
             ) is False:
                 QtWidgets.QMessageBox.about(None, "(｀・ω・´)", "Fake path!")
-                self.control_signal.emit([-1])
+                # self.control_signal.emit([-1])
             else:
                 try:
                     """尝试链接至数据库"""
@@ -635,7 +669,7 @@ class Ui_Setting(QtCore.QObject, Ui_settingDialog):
                         None, "(｀・ω・´)", "SQL connection error!"
                     )
                     # db = None
-                    self.control_signal.emit([-1])
+                    # self.control_signal.emit([-1])
 
     def reject(self):
         print("reject")
@@ -783,23 +817,28 @@ def cleanup():
     print("db closed")
 
 
+def main_control(signal):
+    global MainApp, MainWindow, MainUi, detailWindow
+    if signal[0] == 1:
+        MainUi.setupUi(MainWindow)
+        MainWindow.show()
+
+
 def main():
-    global detailWindow, db
-    # 先连接到数据库
-    db = DB("localhost", "root", "qo4hr[Pxm7W5", "konachan")
-    db.connect()
-    # 再启动GUI
-    app = QtWidgets.QApplication(sys.argv)
+    global MainApp, MainWindow, MainUi, detailWindow
+    MainApp = QtWidgets.QApplication(sys.argv)
+
     detailWindow = QtWidgets.QDialog()
     MainWindow = QtWidgets.QMainWindow()
-    ui = Ui_Main()
-    ui.setupUi(MainWindow)
-    MainWindow.show()
-    # clean up
-    app.aboutToQuit.connect(cleanup)
-    app.exec_()
+    MainUi = Ui_Main()
+    MainUi.control_signal.connect(main_control)
+    MainUi.get_Setting()
+
+    MainApp.aboutToQuit.connect(cleanup)
+    MainApp.exec_()
 
 
+"""
 class testWindow(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
         super(testWindow, self).__init__(parent)
@@ -827,26 +866,8 @@ def test():
     ui = testWindow()
     ui.show()
     sys.exit(app.exec_())
-
-
-def main_control(signal):
-    global MainApp, MainWindow, MainUi, detailWindow
-    if signal[0] == 1:
-        MainUi.setupUi(MainWindow)
-        MainWindow.show()
-
-
-def test2():
-    global MainApp, MainWindow, MainUi, detailWindow
-    MainApp = QtWidgets.QApplication(sys.argv)
-    detailWindow = QtWidgets.QDialog()
-    MainWindow = QtWidgets.QMainWindow()
-    MainUi = Ui_Main()
-    MainUi.control_signal.connect(main_control)
-    MainUi.get_Setting()
-    MainApp.aboutToQuit.connect(cleanup)
-    MainApp.exec_()
+"""
 
 
 if __name__ == "__main__":
-    test2()
+    main()
