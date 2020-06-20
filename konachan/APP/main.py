@@ -217,7 +217,7 @@ class Ui_Main(QtCore.QObject, Ui_MainWindow):
         if modeF is True:
             sql = sql+"""mark.favorite="true" AND """
         """tags部分"""
-        if len(tags_F) > 0:
+        if len(tags_F) > 0 and tags_F[0] != "":
             for item in tags_F:
                 sql = sql + f"main.tags LIKE '%{item}%' AND "
         if len(tags_R) > 0:
