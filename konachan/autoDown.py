@@ -231,6 +231,7 @@ class DB:
         sql = sql + "set " + "`" + filed + "`" + "=%s "
         sql = sql + whereClause
         flag = self.execute(sql, value)
+        self.commit()
         return flag
 
 
