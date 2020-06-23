@@ -6,28 +6,13 @@ import os
 import time
 import threading
 import my_fake_useragent as mfua
-import pymysql
 import copy
 import json
 from pprint import pformat
 from tqdm import tqdm
+from CLASS_DB import DB
 
 lock = threading.Lock()
-
-# 记录时间 创建工作目录
-startTime = time.time()
-taskId = int(startTime)
-taskPath = os.path.join(os.getcwd(), str(taskId))
-os.mkdir(taskPath)
-jsonPath = os.path.join(taskPath, "json")
-os.mkdir(jsonPath)
-urlFilePath = os.path.join(taskPath, "urls.txt")
-logPath = os.path.join(taskPath, "log.txt")
-
-# 初始化下载错误列表和下载结束标志
-jsDownFailedList = []
-finishFlag = 0
-
 
 typeDic = {
     "id": "int",
@@ -68,6 +53,20 @@ typeDic = {
     "frames": "text",
     "flag_detail": "text",
 }
+
+# 记录时间 创建工作目录
+startTime = time.time()
+taskId = int(startTime)
+taskPath = os.path.join(os.getcwd(), str(taskId))
+os.mkdir(taskPath)
+jsonPath = os.path.join(taskPath, "json")
+os.mkdir(jsonPath)
+urlFilePath = os.path.join(taskPath, "urls.txt")
+logPath = os.path.join(taskPath, "log.txt")
+
+# 初始化下载错误列表和下载结束标志
+jsDownFailedList = []
+finishFlag = 0
 
 
 # Html download function
@@ -141,98 +140,6 @@ def downJson(url, urlParams):
         pageFile.write(res.text)
         pageFile.close()
         del tmpPath
-
-
-# 数据库类
-class DB:
-    host = ""
-    user = ""
-    __passwd = ""
-    database = ""
-    connection = ""
-    cursor = ""
-
-    def __init__(self, host=None, user=None, passwd="", database=None):
-        self.host = host
-        self.user = user
-        self.__passwd = passwd
-        self.database = database
-
-    def connect(self):
-        self.connection = pymysql.connect(
-            self.host, self.user, self.__passwd, self.database
-        )
-        self.cursor = self.connection.cursor()
-
-    def commit(self):
-        self.connection.commit()
-
-    def close(self):
-        self.connection.close()
-
-    def rollback(self):
-        self.connection.rollback()
-
-    def execute(self, sql, args=None):
-        try:
-            self.cursor.execute(sql, args)
-            return 1
-        except pymysql.err.InterfaceError:
-            self.connection.ping(reconnect=True)
-            self.cursor.execute(sql, args)
-            return 1
-        except pymysql.Error as e:
-            # print(e.args[0])
-            self.rollback()
-            return e
-
-    def createTable(
-        self,
-        tableName,
-        columns={"Name": "Type"},
-        primaryKey="key",
-        engine="innodb",
-        de_charset="utf8mb4",
-    ):
-        sql = """create table `""" + tableName + """`("""
-        for clName, clType in columns.items():
-            sql = sql + "`" + clName + "`" + " " + clType + ","
-        sql = sql + "primary key" + "(`" + primaryKey + "`)" + ")"
-        sql = sql + "engine=" + engine + " " + "default charset=" + de_charset
-        flag = self.execute(sql)
-        self.commit()
-        return flag
-
-    def dropTable(self, tablesName):
-        sql = """drop table """
-        for item in tablesName:
-            sql = sql + "`" + item + "`" + ","
-        sql = sql[0: len(sql) - 1]
-        flag = self.execute(sql)
-        self.commit()
-        return flag
-
-    def insert(self, tableName, fileds, values):
-        fileds = str(tuple(fileds)).replace("""'""", "`")
-        values = str(tuple(values))
-        tableName = "`" + tableName + "`"
-        sql = """insert into """ + tableName + " "
-        sql = sql + fileds + " values " + values
-        flag = self.execute(sql)
-        self.commit()
-        return flag
-
-    def fetchall(self):
-        results = self.cursor.fetchall()
-        return results
-
-    def update(self, tableName, filed, value, whereClause):
-        sql = "update " + "`" + tableName + "`" + " "
-        sql = sql + "set " + "`" + filed + "`" + "=%s "
-        sql = sql + whereClause
-        flag = self.execute(sql, value)
-        self.commit()
-        return flag
 
 
 # 更新数据库
