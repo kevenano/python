@@ -68,7 +68,7 @@ def download(
 
 # 多线程下载保存json
 def downJson(url, urlParams):
-    global jsDownFailedList
+    global failedList
     global jsonPath
     global finishFlag
     # 打印提示信息
@@ -80,7 +80,7 @@ def downJson(url, urlParams):
     res = download(url=url, params=urlParams, reFlag=2, timeout=(30, 60))
     if (res is None or res.status_code != 200) and lock.acquire():
         # 更新错误列表
-        jsDownFailedList.append(urlParams["page"])
+        failedList.append(urlParams["page"])
         print(f"Page {urlParams['page']} fail...")
         print()
         lock.release()
