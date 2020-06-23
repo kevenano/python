@@ -22,8 +22,9 @@ os.mkdir(taskPath)
 jsonPath = os.path.join(taskPath, "json")
 os.mkdir(jsonPath)
 
-# 初始化错误列表
-failedList = []
+# 初始化下载错误列表和下载结束标志
+jsDownFailedList = []
+finishFlag = 0
 
 
 # Html download function
@@ -68,7 +69,7 @@ def download(
 
 # 多线程下载保存json
 def downJson(url, urlParams):
-    global failedList
+    global jsDownFailedList
     global jsonPath
     global finishFlag
     # 打印提示信息
@@ -80,7 +81,7 @@ def downJson(url, urlParams):
     res = download(url=url, params=urlParams, reFlag=2, timeout=(30, 60))
     if (res is None or res.status_code != 200) and lock.acquire():
         # 更新错误列表
-        failedList.append(urlParams["page"])
+        jsDownFailedList.append(urlParams["page"])
         print(f"Page {urlParams['page']} fail...")
         print()
         lock.release()
