@@ -105,7 +105,7 @@ def writeLog(startPage, endPage, CNT):
     global taskId
     global taskPath
     global jsonPath
-    global failedList
+    global jsDownFailedList
     logPath = os.path.join(taskPath, f"log_{str(CNT)}.txt")
 
     endTime = time.time()
@@ -116,9 +116,9 @@ def writeLog(startPage, endPage, CNT):
     logFile.write("Pages:\n")
     logFile.write(str(startPage) + "-" + str(endPage) + "\n")
     logFile.write("Failed Count:\n")
-    logFile.write(str(len(failedList)) + "\n")
+    logFile.write(str(len(jsDownFailedList)) + "\n")
     logFile.write("Failed List:\n")
-    logFile.write(str(failedList).replace(",", "\n") + "\n")
+    logFile.write(str(jsDownFailedList).replace(",", "\n") + "\n")
     logFile.write("Start Time:\n")
     logFile.write(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(startTime)) + "\n")
     logFile.write("End Time:\n")
@@ -128,7 +128,7 @@ def writeLog(startPage, endPage, CNT):
     logFile.write(str((spendTime % 3600) // 60) + "m")
     logFile.write(str(spendTime % 60) + "s" + "\n")
     logFile.write("\n\n\n\n\nOriginal Failed List:\n")
-    logFile.write(str(failedList))
+    logFile.write(str(jsDownFailedList))
     logFile.close()
 
 
@@ -177,6 +177,7 @@ def getParams():
 
 # 主函数
 def main():
+    global finishFlag
     # 获取参数 建议：limit=100, threadNum=20
     pageList, limit, threadNum = getParams()
     # 初始化相关参数
@@ -186,7 +187,7 @@ def main():
     params = {"limit": limit, "tags": "order:id", "page": pageList[0]}
 
     # 循环获取所有指定页面
-    while pageCnt < len(pageList):
+    while pageCnt < len(pageList) and finishFlag == 0:
         # 创建多线程任务
         if threadNum > len(pageList) - pageCnt:
             threadNum = len(pageList) - pageCnt
