@@ -1,5 +1,7 @@
 <RCC>
   <qresource prefix="picture">
+    <file>source/delete.png</file>
+    <file>source/delete_2.png</file>
     <file>source/konachan_background.png</file>
     <file>source/konachan_logo.png</file>
     <file>source/heart_2.png</file>

@@ -829,12 +829,12 @@ p, li { white-space: pre-wrap; }
    <property name="title">
     <string>ControlBox</string>
    </property>
-   <widget class="QWidget" name="layoutWidget">
+   <widget class="QWidget" name="">
     <property name="geometry">
      <rect>
-      <x>161</x>
+      <x>162</x>
       <y>10</y>
-      <width>296</width>
+      <width>328</width>
       <height>35</height>
      </rect>
     </property>
@@ -891,7 +891,7 @@ p, li { white-space: pre-wrap; }
        </property>
        <property name="sizeHint" stdset="0">
         <size>
-         <width>40</width>
+         <width>30</width>
          <height>20</height>
         </size>
        </property>
@@ -906,6 +906,34 @@ p, li { white-space: pre-wrap; }
         <iconset>
          <selectedoff>:/picture/source/heart.png</selectedoff>
          <selectedon>:/picture/source/heart_2.png</selectedon>
+        </iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>20</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="shortcut">
+        <string>F</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="flat">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="5">
+      <widget class="QPushButton" name="Delete">
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset>
+         <selectedoff>:/picture/source/delete_2.png</selectedoff>
+         <selectedon>:/picture/source/delete.png</selectedon>
         </iconset>
        </property>
        <property name="iconSize">

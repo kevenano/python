@@ -1,9 +1,8 @@
 import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
-import pymysql
 import copy
 import math
-import res_rc
+# import res_rc
 import os
 from CLASS_DB import DB
 from selenium import webdriver
@@ -122,6 +121,8 @@ class Ui_Main(QtCore.QObject, Ui_MainWindow):
         """sql头"""
         sql = "SELECT * FROM main,mark WHERE main.id=mark.id AND "
         """mark部分"""
+        # 排除 deleted
+        sql = sql+"""(mark.deleted is NULL or mark.deleted='false') AND """
         # favorite
         if modeF is True:
             sql = sql+"""mark.favorite="true" AND """
@@ -352,12 +353,20 @@ class Ui_Main(QtCore.QObject, Ui_MainWindow):
             self.showImage()
         elif "set_favorite" == signal[0]:
             self.resultsList[self.currentInd] = list(self.resultsList[self.currentInd])
-            self.resultsList[self.currentInd][-1] = "true"
+            self.resultsList[self.currentInd][-2] = "true"
             db.update("mark", "favorite", "true", f"WHERE mark.id={self.resultsList[self.currentInd][0]}")
         elif "dis_favorite" == signal[0]:
             self.resultsList[self.currentInd] = list(self.resultsList[self.currentInd])
-            self.resultsList[self.currentInd][-1] = "false"
+            self.resultsList[self.currentInd][-2] = "false"
             db.update("mark", "favorite", "false", f"WHERE mark.id={self.resultsList[self.currentInd][0]}")
+        elif "set_delete" == signal[0]:
+            self.resultsList[self.currentInd] = list(self.resultsList[self.currentInd])
+            self.resultsList[self.currentInd][-1] = "true"
+            db.update("mark", "deleted", "true", f"WHERE mark.id={self.resultsList[self.currentInd][0]}")
+        elif "dis_delete" == signal[0]:
+            self.resultsList[self.currentInd] = list(self.resultsList[self.currentInd])
+            self.resultsList[self.currentInd][-1] = "false"
+            db.update("mark", "deleted", "false", f"WHERE mark.id={self.resultsList[self.currentInd][0]}")
 
 
 # 多线程搜索，防假死
@@ -408,6 +417,7 @@ class Ui_Detail(QtCore.QObject, Ui_detailWidget):
     Width_Value = 0
     Height_Value = 0
     Favorite_Value = ""
+    Delete_Value = ""
 
     def setupUi(self, detailWindow):
         """布置控件"""
@@ -416,6 +426,7 @@ class Ui_Detail(QtCore.QObject, Ui_detailWidget):
         self.previous_Button.clicked.connect(self.__previous_item)
         self.next_Button.clicked.connect(self.__next_item)
         self.Favorite.clicked.connect(self.__favorite_change)
+        self.Delete.clicked.connect(self.__delete)
 
     def updateValue(self, valueList):
         self.ID_Value = valueList[0]
@@ -432,7 +443,8 @@ class Ui_Detail(QtCore.QObject, Ui_detailWidget):
         self.Status_Value = valueList[28]
         self.Width_Value = valueList[29]
         self.Height_Value = valueList[30]
-        self.Favorite_Value = valueList[-1]
+        self.Favorite_Value = valueList[-2]
+        self.Delete_Value = valueList[-1]
 
     def updateBox(self):
         self.ID_Box.setText(str(self.ID_Value))
@@ -467,6 +479,10 @@ class Ui_Detail(QtCore.QObject, Ui_detailWidget):
             self.Favorite.setChecked(True)
         else:
             self.Favorite.setChecked(False)
+        if self.Delete_Value == "true":
+            self.Delete.setChecked(True)
+        else:
+            self.Delete.setChecked(False)
 
     def __previous_item(self):
         self.control_signal.emit(["previous"])
@@ -481,6 +497,14 @@ class Ui_Detail(QtCore.QObject, Ui_detailWidget):
         else:
             self.Favorite_Value = "true"
             self.control_signal.emit(["set_favorite"])
+
+    def __delete(self):
+        if self.Delete_Value == "true":
+            self.Delete_Value = "false"
+            self.control_signal.emit(["dis_delete"])
+        else:
+            self.Delete_Value = "true"
+            self.control_signal.emit(["set_delete"])
 
     # def closeEvent(self, event):
     #     reply = QtWidgets.QMessageBox.question(
