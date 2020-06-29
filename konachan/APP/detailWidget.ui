@@ -829,7 +829,7 @@ p, li { white-space: pre-wrap; }
    <property name="title">
     <string>ControlBox</string>
    </property>
-   <widget class="QWidget" name="">
+   <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
       <x>162</x>
@@ -943,7 +943,7 @@ p, li { white-space: pre-wrap; }
         </size>
        </property>
        <property name="shortcut">
-        <string>F</string>
+        <string>D</string>
        </property>
        <property name="checkable">
         <bool>true</bool>
