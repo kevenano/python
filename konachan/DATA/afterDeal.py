@@ -4,6 +4,8 @@ import time
 import sys
 import threading
 from PIL import Image
+from elasticsearch import Elasticsearch
+from image_match.elasticsearch_driver import SignatureES
 
 lock = threading.Lock()
 
@@ -75,6 +77,18 @@ def reAndThum(filePath, outFolder, outSize=(200, 200)):
             print(os.path.basename(outPath), "failed.")
             print()
             lock.release()
+        else:
+            # 向图像匹配库中添加该图片
+            try:
+                es = Elasticsearch()
+                ses = SignatureES(es)
+                ses.add_image(outPath)
+            except Exception:
+                if lock.acquire():
+                    failedList.append(filePath)
+                    print(os.path.basename(outPath), "Failed to add to image-match database.")
+                    print()
+                    lock.release()
 
 
 # 主函数
