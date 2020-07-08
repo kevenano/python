@@ -3,23 +3,31 @@ from image_match.elasticsearch_driver import SignatureES
 from tqdm import tqdm
 import os
 from pprint import pprint
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 # import cv2
 
 
-def imgStoreTest():
+def storeImage(inDir):
     es = Elasticsearch()
     ses = SignatureES(es)
+    # 获取文件列表
+    fileList = []
+    for folderName, subfolders, fileNames in os.walk(inDir):
+        for fileName in fileNames:
+            if fileName.endswith(("jpg", "png", "jpeg", "gif")):
+                fileList.append(os.path.join(folderName, fileName))
     # 循环处理
-    imageDir = r"D:\konachan\thumbnail"
-    imageNames = os.listdir(imageDir)
-    pbar = tqdm(imageNames[152940:], ncols=100)
+    pbar = tqdm(fileList[240119:], ncols=100)
     cnt = 0
-    for imageName in pbar:
+    for imagePath in pbar:
         cnt += 1
-        pbar.set_description(f"{cnt} of {len(imageNames)}")
-        imagePath = os.path.join(imageDir, imageName)
+        # imageID = int(os.path.basename(imagePath).split(".")[0])
+        imageID = int(os.path.basename(imagePath).split(".")[0][6:])
+        pbar.set_description(f"Deal with {imageID}")
         # image = cv2.imread(imagePath)
-        ses.add_image(path=imagePath)
+        metadata = {"imageID": imageID}
+        ses.add_image(path=imagePath, metadata=metadata)
 
 
 def imgSearchTest():
@@ -31,5 +39,5 @@ def imgSearchTest():
 
 
 if __name__ == "__main__":
-    # imgStoreTest()
-    imgSearchTest()
+    inDir = r"D:\konachan\thumbnail"
+    storeImage(inDir)
