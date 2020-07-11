@@ -77,7 +77,7 @@ class unOrderedList:
 
     def exist(self, item) -> bool:
         """元素是否存在"""
-        return self.getIndex(item) is None
+        return self.getIndex(item) is not None
 
     def getIndex(self, item):
         """
@@ -120,6 +120,8 @@ class unOrderedList:
 
     def insert(self, index, item):
         """插入元素"""
+        if index >= self.size:
+            raise IndexError("Index out of range!")
         curInd = 0
         curNode = self.head
         while curInd != index:
