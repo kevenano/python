@@ -1,11 +1,11 @@
 # -*- encoding: utf-8 -*-
-'''
+"""
 @File         :T2.py
 @Time         :2020/07/12 00:35:14
 @Author       :kevenano
 @Description  :双链表实现无序表
 @Version      :1.0
-'''
+"""
 
 
 class Node:
@@ -107,7 +107,7 @@ class unOrderedList:
             raise Exception("List is empty!")
         if index >= self.size:
             raise IndexError("Index out of range!")
-        if index <= self.size//2:
+        if index <= self.size // 2:
             curInd = 0
             curNode = self.head.next
             while curInd != index:
@@ -137,7 +137,7 @@ class unOrderedList:
         """插入元素"""
         if index >= self.size:
             raise IndexError("Index out of range!")
-        if index <= self.size//2:
+        if index <= self.size // 2:
             curInd = 0
             curNode = self.head
             while curInd != index:
@@ -173,7 +173,7 @@ class unOrderedList:
             self.size -= 1
             return curNode.item
         else:
-            if index <= self.size//2:
+            if index <= self.size // 2:
                 curInd = 0
                 # preNode = self.head
                 curNode = self.head.next
