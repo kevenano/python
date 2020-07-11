@@ -4,6 +4,11 @@ import time
 import sys
 import threading
 from PIL import Image
+from elasticsearch import Elasticsearch
+from image_match.elasticsearch_driver import SignatureES
+from tqdm import tqdm
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 lock = threading.Lock()
 
@@ -49,10 +54,10 @@ def mkThumb(filePath, outFolder, outSize=(200, 200)):
         im.thumbnail(outSize)
         im = im.convert("RGB")
         im.save(outPath, "JPEG")
-        return 1
+        return 1, outPath
     except Exception as e:
         print(e)
-        return -1
+        return -1, ""
 
 
 # 结合重命名和生成缩略图
@@ -68,13 +73,47 @@ def reAndThum(filePath, outFolder, outSize=(200, 200)):
         print()
         lock.release()
     else:
-        flag2 = mkThumb(outPath, outFolder, outSize)
+        flag2, thumbPath = mkThumb(outPath, outFolder, outSize)
         if flag2 == -1 and lock.acquire():
             # 更新错误列表
             failedList.append(filePath)
             print(os.path.basename(outPath), "failed.")
             print()
             lock.release()
+        else:
+            # 向图像匹配库中添加该图片(使用缩略图)
+            try:
+                es = Elasticsearch()
+                ses = SignatureES(es)
+                ses.add_image(thumbPath)
+            except Exception:
+                if lock.acquire():
+                    failedList.append(filePath)
+                    print(os.path.basename(outPath), "Failed to add to image-match database.")
+                    print()
+                    lock.release()
+
+
+# 向elasticSearch中添加图片
+def storeImage(inDir):
+    es = Elasticsearch()
+    ses = SignatureES(es)
+    # 获取文件列表
+    fileList = []
+    for folderName, subfolders, fileNames in os.walk(inDir):
+        for fileName in fileNames:
+            if fileName.endswith(("jpg", "png", "jpeg", "gif")):
+                fileList.append(os.path.join(folderName, fileName))
+    # 循环处理
+    pbar = tqdm(fileList, ncols=100)
+    cnt = 0
+    for imagePath in pbar:
+        cnt += 1
+        imageID = int(os.path.basename(imagePath).split(".")[0])
+        pbar.set_description(f"Deal with {imageID}")
+        # image = cv2.imread(imagePath)
+        metadata = {"imageID": imageID}
+        ses.add_image(path=imagePath, metadata=metadata)
 
 
 # 主函数

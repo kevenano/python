@@ -30,8 +30,15 @@ python insertData.py [mainFolder] [tableName]
     4. 遍历 mainFolder 将全部json写入数据库
     5. 写日志
 
--------------------------NOTE-------------------------
+-------------------------NOTE----------------------------
 typeDic 需要根据服务器端手动更新 否则写数据库操作均无法正常进行
 包含未知key的json数据均会被判定为failed
 log里面包含了重要信息 是排错的关键 也有承上启下的作用
 数据库提前设置好 tablename 默认 main
+-------------------------UPDATE----------------------------
+已有数据更新流程：
+1.确认起始ID及终止ID（注意不要超过本地数据库中最大ID）
+2.执行downJson.py
+3.检查log, 若有fail，再执行downJson.py
+4.json下载完毕后，执行insertData.py
+5.Navicat 再更新一下mark的deleted项

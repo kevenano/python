@@ -88,7 +88,7 @@ def downJson(url, urlParams):
     elif len(res.content) < 100 and lock.acquire():
         # 空的json页, 直接判定下载结束
         finishFlag = 1
-        print("Page "+str(urlParams["page"])+" empty page!")
+        print("Page " + str(urlParams["page"]) + " empty page!")
         print()
         lock.release()
     else:
@@ -100,7 +100,7 @@ def downJson(url, urlParams):
         del tmpPath
 
 
-def writeLog(startPage, endPage, CNT):
+def writeLog(startID, endID, CNT):
     global startTime
     global taskId
     global taskPath
@@ -113,8 +113,8 @@ def writeLog(startPage, endPage, CNT):
     logFile = open(logPath, "w")
     logFile.write("Task ID:\n")
     logFile.write(str(taskId) + "\n")
-    logFile.write("Pages:\n")
-    logFile.write(str(startPage) + "-" + str(endPage) + "\n")
+    logFile.write("ID Range:\n")
+    logFile.write(str(startID) + "-" + str(endID) + "\n")
     logFile.write("Failed Count:\n")
     logFile.write(str(len(jsDownFailedList)) + "\n")
     logFile.write("Failed List:\n")
@@ -134,8 +134,28 @@ def writeLog(startPage, endPage, CNT):
 
 # 获取参数
 def getParams():
+    startID = int(input("Start ID:\n"))
+    endID = int(input("End ID:\n"))
+    limit = int(input("Limit:\n"))
+    maxPage = int(input("MAX Page:\n"))
+    threadNum = int(input("Thread Number:\n"))
+    if startID < 1:
+        startID = 1
+    if endID < startID:
+        endID = startID
+    if maxPage < 1:
+        maxPage = 1
+    if limit < 21:
+        limit = 21
+    if limit > 100:
+        limit = 100
+    if threadNum < 1:
+        threadNum = 1
+    if threadNum > 20:
+        threadNum = 20
+
     flag = 0
-    flag = int(input("Range or List? 0 for Range, 1 for List :\n"))
+    flag = int(input("Specify List? 1 for Yes, 0 for No :\n"))
     if flag != 0 and flag != 1:
         print("Bye!")
         exit()
@@ -154,37 +174,25 @@ def getParams():
             )
         )
     else:
-        startPage = int(input("Start Page:\n"))
-        endPage = int(input("End Page:\n"))
-        if startPage < 1:
-            startPage = 1
-        if endPage < startPage:
-            endPage = startPage
-        pageList = list(range(startPage, endPage))
-    limit = int(input("Limit:\n"))
-    if limit < 21:
-        limit = 21
-    if limit > 100:
-        limit = 100
-    threadNum = int(input("Thread Number:\n"))
-    if threadNum < 1:
-        threadNum = 1
-    if threadNum > 20:
-        threadNum = 20
+        pageList = list(range(1, maxPage+1))
 
-    return pageList, limit, threadNum
+    return startID, endID, pageList, limit, threadNum
 
 
 # 主函数
 def main():
     global finishFlag
     # 获取参数 建议：limit=100, threadNum=20
-    pageList, limit, threadNum = getParams()
+    startID, endID, pageList, limit, threadNum = getParams()
     # 初始化相关参数
     pageCnt = 0  # 完成的任务数
     cnt = 0
     url = "https://konachan.com/post.json"
-    params = {"limit": limit, "tags": "order:id", "page": pageList[0]}
+    params = {
+        "limit": limit,
+        "tags": f"order:id id:{startID}..{endID}",
+        "page": pageList[0],
+    }
 
     # 循环获取所有指定页面
     while pageCnt < len(pageList) and finishFlag == 0:
@@ -204,12 +212,12 @@ def main():
             thread.join()
         # 写日志
         if pageCnt % (threadNum * 10) == 0:
-            writeLog(pageList[pageCnt - threadNum * 10 + 1], pageList[pageCnt], cnt)
-            cnt += 1
+            # writeLog(pageList[pageCnt - threadNum * 10 + 1], pageList[pageCnt], cnt)
+            # cnt += 1
             time.sleep(randint(60, 120))
 
     # 写日志
-    writeLog(pageList[0], pageList[-1], cnt)
+    writeLog(startID, endID, cnt)
 
     # over!
     print("All finish!")

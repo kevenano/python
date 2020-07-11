@@ -124,7 +124,7 @@ def main():
     pbar = tqdm(jsList, ncols=100)
     for file in pbar:
         cnt += 1
-        pbar.set_description(f"{cnt} of {len(jsList)}")
+        # pbar.set_description(f"{cnt} of {len(jsList)}")
         jsFile = open(file, "r", encoding="utf-8")
         data = json.load(jsFile)
         jsFile.close()
