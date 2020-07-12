@@ -7,6 +7,8 @@
 @Version      :1.0
 """
 
+from time import time
+
 
 class Node:
     def __init__(self, prev=None, item=None, Next=None):
@@ -16,7 +18,7 @@ class Node:
 
 
 class unOrderedList:
-    """单链表实现无序表"""
+    """双链表实现无序表"""
 
     def __init__(self):
         """初始化"""
@@ -36,6 +38,7 @@ class unOrderedList:
         tmpNode = self.head.next
         while tmpNode.next is not None:
             itemCnt += 1
+            tmpNode = tmpNode.next
         return itemCnt
 
     def __repr__(self):
@@ -60,46 +63,68 @@ class unOrderedList:
         self.head.next = newNode
         self.size += 1
 
-    def remove(self, item) -> int:
+    def remove(self, item, direction="forward") -> int:
         """
         移除元素
-        元素存在并成功移除返回 1
-        元素不存在返回 -1
+        direction="forward" 从前往后插
+        direction="reverse" 从后往前插
+        return  1 元素存在并成功移除
+        return -1 元素不存在
         """
-        if self.isEmpty():
-            raise Exception("List is empty!")
-        # preNode = self.head
-        curNode = self.head.next
-        while curNode.item != item:
-            if curNode.next.next is None:
-                return -1
-            # preNode = curNode
-            curNode = curNode.next
+        if direction not in ("forward", "reverse"):
+            raise Exception("Parameter error!")
+        if direction == "forward":
+            curNode = self.head
+            while curNode.item != item:
+                if curNode.next.next is None:
+                    return -1
+                curNode = curNode.next
+        else:
+            curNode = self.rear
+            while curNode.item != item:
+                if curNode.prev.prev is None:
+                    return -1
+                curNode = curNode.prev
         curNode.prev.next = curNode.next
         curNode.next.prev = curNode.prev
-        # del curNode
         self.size -= 1
         return 1
 
-    def exist(self, item) -> bool:
-        """元素是否存在"""
-        return self.getIndex(item) is not None
+    def exist(self, item, direction="forward") -> bool:
+        """
+        元素是否存在
+        direction="forward" 从前往后查找
+        direction="reverse" 从后往前查找
+        """
+        return self.getIndex(item, direction) is not None
 
-    def getIndex(self, item):
+    def getIndex(self, item, direction="forward"):
         """
         获取item第一次出现的索引值
+        direction="forward" 从前往后查找
+        direction="reverse" 从后往前查找
         若item不存在，返回None
         """
         if self.isEmpty():
             raise Exception("List is empty!")
-        tmpNode = self.head.next
-        index = 0
-        while tmpNode.item != item:
-            if tmpNode.next.next is None:
-                return None
-            tmpNode = tmpNode.next
-            index += 1
-        return index
+        if direction == "forward":
+            tmpNode = self.head.next
+            index = 0
+            while tmpNode.item != item:
+                if tmpNode.next.next is None:
+                    return None
+                tmpNode = tmpNode.next
+                index += 1
+            return index
+        else:
+            tmpNode = self.rear.prev
+            index = self.size - 1
+            while tmpNode.item != item:
+                if tmpNode.prev.prev is None:
+                    return None
+                tmpNode = tmpNode.prev
+                index -= 1
+            return index
 
     def getItem(self, index):
         """根据索引获取元素"""
@@ -139,24 +164,24 @@ class unOrderedList:
             raise IndexError("Index out of range!")
         if index <= self.size // 2:
             curInd = 0
-            curNode = self.head
+            curNode = self.head.next
             while curInd != index:
                 curInd += 1
                 curNode = curNode.next
-            newNode = Node(curNode, item, curNode.next)
-            curNode.next.prev = newNode
-            curNode.next = newNode
-            self.size += 1
+            # newNode = Node(curNode.prev, item, curNode)
+            # curNode.prev.next = newNode
+            # curNode.prev = newNode
+            # self.size += 1
         else:
             curInd = self.size - 1
             curNode = self.rear.prev
             while curInd != index:
                 curInd -= 1
                 curNode = curNode.prev
-            newNode = Node(curNode.prev, item, curNode)
-            curNode.prev.next = newNode
-            curNode.prev = newNode
-            self.size += 1
+        newNode = Node(curNode.prev, item, curNode)
+        curNode.prev.next = newNode
+        curNode.prev = newNode
+        self.size += 1
 
     def pop(self, index=None):
         """抛出元素"""
@@ -201,9 +226,13 @@ class unOrderedList:
 
 def test():
     testList = unOrderedList()
+    t1 = time()
     for i in range(10):
         testList.add(i)
+    t2 = time()
+    print(t2-t1)
     # testList.remove(0)
+    print(len(testList))
     print(testList)
 
 

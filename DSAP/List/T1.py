@@ -32,6 +32,7 @@ class unOrderedList:
         tmpNode = self.head.next
         while tmpNode is not None:
             itemCnt += 1
+            tmpNode = tmpNode.next
         return itemCnt
 
     def __repr__(self):
