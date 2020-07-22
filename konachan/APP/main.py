@@ -9,7 +9,7 @@ from selenium import webdriver
 from mainWidget import Ui_MainWindow
 from detailWidget import Ui_detailWidget
 from settingDialog import Ui_settingDialog
-from time import localtime
+from time import strftime, localtime
 
 
 # block 标签列表
