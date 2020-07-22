@@ -9,6 +9,7 @@ from selenium import webdriver
 from mainWidget import Ui_MainWindow
 from detailWidget import Ui_detailWidget
 from settingDialog import Ui_settingDialog
+from time import strftime, localtime
 
 
 # block 标签列表
@@ -451,7 +452,7 @@ class Ui_Detail(QtCore.QObject, Ui_detailWidget):
         self.ID_Box.setFontPointSize(12)
         self.Tags_Box.setText(str(self.Tags_Value))
         self.Tags_Box.setFontPointSize(12)
-        self.Created_At_Box.setText(str(self.Created_At_Value))
+        self.Created_At_Box.setText(strftime("%a %b %d %Y", localtime(self.Created_At_Value)))
         self.Created_At_Box.setFontPointSize(12)
         self.Created_ID_Box.setText(str(self.Created_ID_Value))
         self.Created_ID_Box.setFontPointSize(12)

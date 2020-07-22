@@ -140,3 +140,4 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+konachan/APP/__pycache__/detailWidget.cpython-38.pyc
