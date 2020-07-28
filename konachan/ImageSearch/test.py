@@ -18,7 +18,7 @@ def storeImage(inDir):
             if fileName.endswith(("jpg", "png", "jpeg", "gif")):
                 fileList.append(os.path.join(folderName, fileName))
     # 循环处理
-    pbar = tqdm(fileList[240119:], ncols=100)
+    pbar = tqdm(ncols=100)
     cnt = 0
     for imagePath in pbar:
         cnt += 1
@@ -38,6 +38,18 @@ def imgSearchTest():
     pprint(res)
 
 
+def imgStoreTest():
+    es = Elasticsearch()
+    ses = SignatureES(es)
+    imagePath = r"D:\konachan\T22\311479.jpg"
+    imageID = int(os.path.basename(imagePath).split(".")[0])
+    # pbar.set_description(f"Deal with {imageID}")
+    # image = cv2.imread(imagePath)
+    metadata = {"imageID": imageID}
+    ses.add_image(path=imagePath, metadata=metadata)
+
+
 if __name__ == "__main__":
-    inDir = r"D:\konachan\thumbnail"
-    storeImage(inDir)
+    # inDir = r"D:\konachan\thumbnail"
+    # storeImage(inDir)
+    imgStoreTest()
