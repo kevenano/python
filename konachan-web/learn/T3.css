@@ -1,0 +1,66 @@
+h1 {
+  font-size: 36pt;
+  margin: 0px;
+}
+
+h2 {
+  border-bottom-color: rgb(0, 166, 249);
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  font-size: 1.8em;
+  font-weight: 500;
+  padding-left: 5px;
+  margin: 0px;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:link {
+  color: blue;
+}
+
+a:visited {
+  color: rgb(43, 151, 0);
+}
+
+a:hover {
+  color: rgb(193, 190, 221);
+  text-decoration: underline;
+}
+
+.nav a {
+  font-size: 150%;
+}
+
+.row {
+  width: 100%;
+  max-width: 1280px;
+  min-width: 720px;
+  margin: auto;
+}
+
+.col {
+  overflow: hidden;
+}
+
+.col.head,
+.col.nav {
+  text-align: center;
+  margin: auto;
+}
+
+.left-column {
+  width: 14%;
+  float: left;
+}
+
+.right-column {
+  width: 14%;
+  float: right;
+}
+
+.middle-column {
+  width: 72%;
+}
