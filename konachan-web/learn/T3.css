@@ -36,7 +36,7 @@ a:hover {
 
 .row {
   width: 100%;
-  max-width: 1280px;
+  max-width: 1600px;
   min-width: 720px;
   margin: auto;
 }
@@ -46,7 +46,8 @@ a:hover {
 }
 
 .col.head,
-.col.nav {
+.col.nav,
+.col.login {
   text-align: center;
   margin: auto;
 }
@@ -54,13 +55,15 @@ a:hover {
 .left-column {
   width: 14%;
   float: left;
+  text-align: center;
 }
 
 .right-column {
   width: 14%;
   float: right;
+  text-align: center;
 }
 
 .middle-column {
-  width: 72%;
+  width: auto;
 }
