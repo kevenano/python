@@ -1,12 +1,12 @@
-<!--欢迎页-->
+<!--检索页-->
 {% load static %}
 <!DOCTYPE html>
 <html>
   <head>
     <meta charset="UTF-8" />
     <link rel="stylesheet" type="text/css" href="{%static 'css/base.css'%}" />
-    <link rel="stylesheet" type="text/css" href="{%static 'css/welcome.css'%}">
-    <title>welcome!</title>
+    <link rel="stylesheet" type="text/css" href="{%static 'css/index.css'%}" />
+    <title>kevenano</title>
   </head>
 
   <body>
@@ -33,21 +33,14 @@
           <p>This is right panel</p>
         </div>
         <div class="col middle-column">
-          <div id="logo">
-              <img src="{%static 'images/konachan_logo.png'%}" alt="logo">
-          </div>
-          <div id="search">
-              <form action="/index" method="GET">
-                  <input type="text" name="tags">
-                  <input type="submit" value="Go!">
-              </form>
-          </div>
+          <p>tags: {{tags}}</p><br>
+          <p>result: {{result}}</p>
         </div>
       </div>
     </div>
     <div class="container footer">
       <div class="col middle">
-          <p>This is footer</p>
+        <p>This is footer</p>
       </div>
     </div>
   </body>

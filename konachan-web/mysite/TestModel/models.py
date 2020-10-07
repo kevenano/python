@@ -60,3 +60,13 @@ class Mark(models.Model):
     class Meta:
         managed = False
         db_table = 'mark'
+
+
+class Mark2(models.Model):
+    id = models.OneToOneField(Main, models.DO_NOTHING, db_column='id', primary_key=True)
+    favorite = models.TextField(blank=True, null=True)
+    deleted = models.TextField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'mark2'
