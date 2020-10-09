@@ -1,7 +1,13 @@
 p {
-    color: wheat;
+    color: black;
     text-align: center;
 }
+
+/* .left-column,
+.right-column,
+.middle-column {
+    height: 800px;
+} */
 
 .col {
     margin: auto;

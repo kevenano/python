@@ -33,8 +33,43 @@
           <p>This is right panel</p>
         </div>
         <div class="col middle-column">
-          <p>tags: {{tags}}</p><br>
-          <p>result: {{result}}</p>
+          <!-- <p>tags: {{tags}}</p><br>
+          <p>result: {{result}}</p> -->
+          <div class="searchBox">
+            <form action="/search/" method="POST">
+              <!-- action里面要以反斜杠"/"结尾!!!!!!! -->
+              {% csrf_token %}
+              <div id="tagsBox"></div>
+              <div id="inputBox">
+                <input type="text" name="tags_input" />
+                <input type="submit" value="Go!" />
+              </div>
+              <div id="advanBox">
+                ID Range: <input type="number" name="ID_start" /> -
+                <input type="number" name="ID_end" /><br />
+                Rating:
+                <input type="checkbox" name="rating_s" value="safe" />safe
+                <input
+                  type="checkbox"
+                  name="rating_q"
+                  value="question"
+                />question
+                <input
+                  type="checkbox"
+                  name="rating_e"
+                  value="explicit"
+                />explicit
+                <br />
+                Order: <select name="order">
+                  <option value="id" selected>ID</option>
+                  <option value="score">score</option>
+                </select>
+              </div>
+            </form>
+          </div>
+          <div class="preshowBox">
+            {{ preShow }}
+          </div>
         </div>
       </div>
     </div>

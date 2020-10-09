@@ -5,6 +5,10 @@
     display: none;
 }
 
+.middle-column {
+    margin: auto;
+}
+
 .content {
     margin-top: 200px;
     height: 100%;

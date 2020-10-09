@@ -20,5 +20,6 @@ from . import views
 urlpatterns = [
     # path('kevenano/', views.kevenano),
     path('', views.welcome),
-    path('index/', views.welcomeSearch)
+    path('index/', views.welcomeSearch),
+    path('search/', views.indexSearch)
 ]

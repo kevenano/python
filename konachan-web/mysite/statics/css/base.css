@@ -1,10 +1,13 @@
+/* 确定整体布局 */
+/* 定义了内容行的宽度范围 */
+/* 定义了背景色 */
 html {
-    background-color: rgb(22, 22, 22);
+    background-color: white;
 }
 
 .row {
     width: 100%;
-    max-width: 1280px;
+    max-width: 1920px;
     min-width: 720px;
     margin: auto;
 }
@@ -14,17 +17,17 @@ html {
 }
 
 .left-column {
-    width: 14%;
+    width: 20%;
     float: left;
     text-align: center;
 }
 
 .right-column {
-    width: 14%;
+    width: 20%;
     float: right;
     text-align: center;
 }
 
 .middle-column {
-    width: auto;
+    max-width: 60%;
 }
