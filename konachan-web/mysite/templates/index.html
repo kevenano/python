@@ -33,8 +33,6 @@
           <p>This is right panel</p>
         </div>
         <div class="col middle-column">
-          <!-- <p>tags: {{tags}}</p><br>
-          <p>result: {{result}}</p> -->
           <div class="searchBox">
             <form action="/search/" method="POST">
               <!-- action里面要以反斜杠"/"结尾!!!!!!! -->
@@ -45,22 +43,36 @@
                 <input type="submit" value="Go!" />
               </div>
               <div id="advanBox">
-                ID Range: <input type="number" name="ID_start" /> -
-                <input type="number" name="ID_end" /><br />
+                ID Range:
+                <input type="number" name="ID_start" min="1" value="1" /> -
+                <input
+                  type="number"
+                  name="ID_end"
+                  min="1"
+                  value="999999"
+                /><br />
                 Rating:
-                <input type="checkbox" name="rating_s" value="safe" />safe
+                <input
+                  type="checkbox"
+                  name="rating_s"
+                  value="safe"
+                  checked="checked"
+                />safe
                 <input
                   type="checkbox"
                   name="rating_q"
                   value="question"
+                  checked="checked"
                 />question
                 <input
                   type="checkbox"
                   name="rating_e"
                   value="explicit"
+                  checked="checked"
                 />explicit
                 <br />
-                Order: <select name="order">
+                Order:
+                <select name="order">
                   <option value="id" selected>ID</option>
                   <option value="score">score</option>
                 </select>
@@ -68,7 +80,18 @@
             </form>
           </div>
           <div class="preshowBox">
-            {{ preShow }}
+            <table id="showTable">
+              {% for item in dataList%}
+              {% if forloop.counter0|divisibleby:4 %}
+              <tr>
+              {% endif %}
+               {# <!--<td>{{item.id}} {{item.score}}</td>--> #}
+              <td><a href="{%static 'imageBase'%}/{{item.yearFolder}}/{{item.id}}.{{item.imgType}}"><img src="{%static 'thumbnail'%}/thumb-{{item.id}}.jpg" alt="{{item.id}}"></a></td>
+              {% if forloop.counter|divisibleby:4%}
+              </tr>
+              {% endif %}
+              {% endfor %}
+            </table>
           </div>
         </div>
       </div>

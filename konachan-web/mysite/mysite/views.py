@@ -69,7 +69,7 @@ def indexSearch(request):
         pprint(inData)
     print('---------------###---------------')
     for k, v in inData.items():
-        if k=='ID_start' or k=='ID_end':
+        if k == 'ID_start' or k == 'ID_end':
             formData[k] = int(v)
         else:
             formData[k] = v
@@ -109,9 +109,42 @@ def indexSearch(request):
     print('---------------###---------------')
     res = Main.objects.filter(*QList).order_by(formData['order'])[0:10]
     resDic = {}
-    resLis = []
+    reList = []
     for item in res:
         resDic['id'] = item.id
         resDic['score'] = item.score
-        resLis.append(copy.copy(resDic))
-    return render(request, 'index.html', {'preShow':resLis})
+        resDic['tags'] = item.tags
+        resDic['rating'] = item.rating
+        resDic['yearFolder'] = yearFolder(item.id)
+        resDic['imgType'] = item.file_url.split(".")[-1]
+        reList.append(copy.copy(resDic))
+    return render(request, 'index.html', {'dataList': reList})
+
+
+def yearFolder(imgID: int):
+    imgYear = 0
+    if imgID >= 1 and imgID <= 50000:
+        imgYear = 2009
+    elif imgID >= 50001 and imgID <= 91915:
+        imgYear = 2010
+    elif imgID >= 91916 and imgID <= 110000:
+        imgYear = 2011
+    elif imgID >= 110001 and imgID <= 151836:
+        imgYear = 2012
+    elif imgID >= 151840 and imgID <= 175606:
+        imgYear = 2013
+    elif imgID >= 175607 and imgID <= 193960:
+        imgYear = 2014
+    elif imgID >= 193961 and imgID <= 210000:
+        imgYear = 2015
+    elif imgID >= 210001 and imgID <= 233400:
+        imgYear = 2016
+    elif imgID >= 233401 and imgID <= 257743:
+        imgYear = 2017
+    elif imgID >= 257744 and imgID <= 276246:
+        imgYear = 2018
+    elif imgID >= 276247 and imgID <= 297318:
+        imgYear = 2019
+    elif imgID >= 297319 and imgID <= 999999:
+        imgYear = 2020
+    return imgYear
