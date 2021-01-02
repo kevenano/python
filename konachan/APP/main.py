@@ -299,7 +299,9 @@ class Ui_Main(QtCore.QObject, Ui_MainWindow):
             imgYear = 2018
         elif imgID >= 276247 and imgID <= 297318:
             imgYear = 2019
-        elif imgID >= 297319 and imgID <= 999999:
+        elif imgID >= 297319 and imgID <= 321261:
+            imgYear = 2020
+        elif imgID >= 321262 and imgID <= 999999:
             imgYear = 2020
         # 构造路径
         imgPath = os.path.join(originPath, str(imgYear), str(imgID) + "." + imgType)
