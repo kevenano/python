@@ -3,32 +3,29 @@ import requests
 import my_fake_useragent as mfua
 import time
 import os
-import threading
 import multiprocessing
 import copy
 import pymysql
 from bs4 import BeautifulSoup
-from soupsieve.css_parser import PSEUDO_SIMPLE
 from tqdm import tqdm
 from pprint import pprint
 
 
-lock = threading.Lock()
-proLock = multiprocessing.Lock()
+# lock = threading.Lock()
 
 
-# 记录时间 创建工作目录
-startTime = time.time()
-taskId = int(startTime)
-taskPath = os.path.join(os.getcwd(), str(taskId))
-# os.mkdir(taskPath)
-htmlPath = os.path.join(taskPath, "html")
+# # 记录时间 创建工作目录
+# startTime = time.time()
+# taskID = int(startTime)
+# taskPath = os.path.join(os.getcwd(), str(taskID))
+# # os.mkdir(taskPath)
+
 # os.mkdir(htmlPath)
-logPath = os.path.join(taskPath, "log.txt")
+# logPath = os.path.join(taskPath, "log.txt")
 
 
 # 初始化错误列表
-indexDownFailList = []
+# indexDownFailList = []
 # indexReadFailList = []
 
 
@@ -190,70 +187,92 @@ class DB:
         return flag
 
 
-# 下载一页索引页
-def down1Index(page: int):
-    global lock
-    global indexDownFailList
-    global htmlPath
-
+# 下载一组索引页
+def down1Index(pageList: list, htmlPath, indexDownFailList, proLock, startTime, taskID, taskPath, sleepTime=1, proID=0):
     # 下载
-    if page < 1:
-        page = 1
-    url = "https://www.everyonepiano.cn/Music.html"
-    urlParams = {"p": page, "canshu": "cn_edittime", "paixu": "asc"}
-    # 打印提示信息
-    if lock.acquire():
-        print("Deal with page ", page)
-        print()
-        lock.release()
-    # 尝试下载
-    res = download(url=url, params=urlParams, reFlag=2, timeout=(5, 10))
-    if (not isinstance(res, requests.models.Response) or res.status_code != 200) and lock.acquire():
-        print(f"Page {page} fail...")
-        # 更新错误列表
-        indexDownFailList.append(page)
-        lock.release()
-    else:
-        # 保存html
-        tmpPath = os.path.join(htmlPath, str(str(page) + ".html"))
-        pageFile = open(tmpPath, "w", encoding="utf-8")
-        pageFile.write(res.text)
-        pageFile.close()
-        del tmpPath
-
-
-# 多线程下载索引页
-def multiDownIndex(pageList: list, threadNum: int):
-    pageCnt = 0  # 完成的任务数
+    pageCnt = 0     # 完成的任务数
     logCnt = 0
-    # 循环获取所有指定页面
-    while pageCnt < len(pageList):
-        # 创建多线程任务
-        if threadNum > len(pageList) - pageCnt:
-            threadNum = len(pageList) - pageCnt
-        thList = []
-        for i in range(threadNum):
-            page = pageList[pageCnt]
-            dlThread = threading.Thread(
-                target=down1Index, kwargs={"page": page})
-            thList.append(dlThread)
-            dlThread.start()
-            time.sleep(1)
-            pageCnt += 1
-        # 等待线程结束
-        for thread in thList:
-            thread.join()
-        # 写日志 延时
-        if pageCnt % (threadNum * 10) == 0:
-            indexDownLog(pageList[pageCnt - threadNum * 10],
-                         pageList[pageCnt-1], logCnt)
-            logCnt += 1
-            print("Sleeping...")
-            time.sleep(randint(30, 60))
+    for page in pageList:
+        if page < 1:
+            page = 1
+        url = "https://www.everyonepiano.cn/Music.html"
+        urlParams = {"p": page, "canshu": "cn_edittime", "paixu": "asc"}
+        # 打印提示信息
+        if proLock.acquire():
+            print("Deal with page ", page)
+            print()
+            proLock.release()
+        # 尝试下载
+        res = download(url=url, params=urlParams, reFlag=2, timeout=(5, 10))
+        pageCnt += 1
+        if (not isinstance(res, requests.models.Response) or res.status_code != 200) and proLock.acquire():
+            print(f"Page {page} fail...")
+            # 更新错误列表
+            indexDownFailList.append(page)
+            proLock.release()
         else:
-            print("Sleeping...\n")
-            time.sleep(randint(2, 5))
-    indexDownLog(pageList[0], pageList[-1], logCnt)
+            # 保存html
+            tmpPath = os.path.join(htmlPath, str(str(page) + ".html"))
+            pageFile = open(tmpPath, "w", encoding="utf-8")
+            pageFile.write(res.text)
+            pageFile.close()
+            del tmpPath
+        # 写日志 延时
+        if pageCnt == len(pageList)//2 or pageCnt == len(pageList):
+            indexDownLog(pageList[0],
+                         pageList[pageCnt-1], logCnt, indexDownFailList, proID, startTime, taskID, taskPath)
+            logCnt += 1
+            if pageCnt == len(pageList)//2:
+                if proLock.acquire():
+                    print("Process ", proID, " Sleeping... ")
+                    print()
+                    proLock.release()
+                time.sleep(randint(30, 60))
+        # 延时
+        time.sleep(sleepTime)
+
+
+# 多进程下载索引页
+def multiDownIndex(pageList: list, proNum: int, indexDownFailList, proLock, startTime, taskID, taskPath):
+    # 创建html文件保存目录
+    htmlPath = os.path.join(taskPath, "html")
+    try:
+        os.mkdir(htmlPath)
+    except Exception as e:
+        print(e)
+    # 根据线程数划分任务列表
+    taskList = []
+    if proNum > len(pageList):
+        proNum = len(pageList)
+    for i in range(proNum):
+        taskList.append(pageList[i::proNum])
+
+    # 开启多进程
+    proList = []
+    proID = 0
+    kwargs = {}
+    kwargs["htmlPath"] = htmlPath
+    kwargs["indexDownFailList"] = indexDownFailList
+    kwargs["proLock"] = proLock
+    kwargs["startTime"] = startTime
+    kwargs["taskID"] = taskID
+    kwargs["taskPath"] = taskPath
+    kwargs["sleepTime"] = proNum
+    for task in taskList:
+        kwargs["pageList"] = task
+        kwargs["proID"] = proID
+        taskProcess = multiprocessing.Process(target=down1Index, kwargs=kwargs)
+        proList.append(taskProcess)
+        taskProcess.start()
+        proID += 1
+
+    # 等待进程结束
+    for process in proList:
+        process.join()
+
+    # 写日志
+    indexDownLog(pageList[0],
+                         pageList[-1], 1, indexDownFailList, proID, startTime, taskID, taskPath)
 
 
 # 解析一页 获取索引数据
@@ -287,7 +306,7 @@ def analyze1Index(htmlFileList: str, indexReadFailList):
         itemList = []
         itemDic = {"id": None, "title": None, "author": None,
                    "score": None, "time": None, "description": None,
-                   "eopn_page": None, "midi_page": None, 
+                   "eopn_page": None, "midi_page": None,
                    "pdf_page": None, "eopm_page": None,
                    "main_page": None}
 
@@ -329,7 +348,7 @@ def analyze1Index(htmlFileList: str, indexReadFailList):
 
 
 # 多进程解析索引数据
-def multiAnalyzeIndex(htmlFileFolder: str, proNum: int, indexReadFailList):
+def multiAnalyzeIndex(htmlFileFolder: str, proNum: int, indexReadFailList, startTime, taskID, taskPath):
     # 获取html文件列表
     htmlFileList = []
     for folderName, subfolders, fileNames in os.walk(htmlFileFolder):
@@ -356,68 +375,74 @@ def multiAnalyzeIndex(htmlFileFolder: str, proNum: int, indexReadFailList):
     for process in proList:
         process.join()
 
-    # 创建工作目录
-    try:
-        os.mkdir(taskPath)
-    except Exception as e:
-        pass
     # 写日志
-    indexAnalyLog(indexReadFailList)
+    indexAnalyLog(indexReadFailList, startTime, taskID, taskPath)
 
 
 # 获取参数
-def getParams():
-    pageList = []
-    flag = 0
-    flag = int(input("Specify Page List? 1 for Yes, 0 for No :\n"))
-    if flag != 0 and flag != 1:
-        print("Bye!")
-        exit()
-    if flag == 1:
-        pageList = list(
-            set(
-                [
-                    int(i)
-                    for i in input("Input the list:\n")
-                    .replace(" ", "")
-                    .replace("[", "")
-                    .replace("]", "")
-                    .split(",")
-                    if i.isdigit()
-                ]
+def getParams(taskChoice: int):
+    if taskChoice == 0:
+        # index下载部分参数选择
+        pageList = []
+        flag = 0
+        flag = int(input("Specify Page List? 1 for Yes, 0 for No :\n"))
+        if flag != 0 and flag != 1:
+            print("Bye!")
+            exit()
+        if flag == 1:
+            pageList = list(
+                set(
+                    [
+                        int(i)
+                        for i in input("Input the list:\n")
+                        .replace(" ", "")
+                        .replace("[", "")
+                        .replace("]", "")
+                        .split(",")
+                        if i.isdigit()
+                    ]
+                )
             )
-        )
-    else:
-        startPG = int(input("Start Page:\n"))
-        endPG = int(input("End Page:\n"))
-        if startPG < 1:
-            startPG = 1
-        if endPG < startPG:
-            endPG = startPG
-        pageList = list(range(startPG, endPG+1))
-    threadNum = int(input("Thread Number:\n"))
-    if threadNum < 1:
-        threadNum = 1
-    if threadNum > 20:
-        threadNum = 20
+        else:
+            startPG = int(input("Start Page:\n"))
+            endPG = int(input("End Page:\n"))
+            if startPG < 1:
+                startPG = 1
+            if endPG < startPG:
+                endPG = startPG
+            pageList = list(range(startPG, endPG+1))
+        proNum = int(input("Process Number:\n"))
+        if proNum < 1:
+            proNum = 1
+        if proNum > 8:
+            proNum = 8
 
-    return pageList, threadNum
+        return pageList, proNum
+    elif taskChoice == 1:
+        # index解析参数选择
+        htmlFileFolder = input("htmlFileFolder:\n")
+        if not os.path.isdir(htmlFileFolder):
+            print("Wrong Dir!")
+            exit()
+        proNum = int(input("Process Number:\n"))
+        if proNum < 1:
+            proNum = 1
+        if proNum > 8:
+            proNum = 8
+
+        return htmlFileFolder, proNum
 
 
 # 写index下载log
-def indexDownLog(startPG, endPG, CNT):
-    global startTime
-    global taskId
-    global taskPath
-    global htmlPath
-    global indexDownFailList
-    logPath = os.path.join(taskPath, f"indexDownLog_{str(CNT)}.txt")
+def indexDownLog(startPG, endPG, CNT, indexDownFailList, proID, startTime, taskID, taskPath):
+    logPath = os.path.join(
+        taskPath, f"indexDownLog_{str(proID)}_{str(CNT)}.txt")
 
     endTime = time.time()
     spendTime = int(endTime - startTime)
     logFile = open(logPath, "w")
     logFile.write("Task ID:\n")
-    logFile.write(str(taskId) + "\n")
+    logFile.write(str(taskID) + "\n")
     logFile.write("Page Range:\n")
     logFile.write(str(startPG) + "-" + str(endPG) + "\n")
     logFile.write("Failed Count:\n")
@@ -440,17 +465,14 @@ def indexDownLog(startPG, endPG, CNT):
 
 
 # 写index分析log
-def indexAnalyLog(indexReadFailList):
-    global startTime
-    global taskId
-    global taskPath
+def indexAnalyLog(indexReadFailList, startTime, taskID, taskPath):
     logPath = os.path.join(taskPath, "indexAnalyLog.txt")
 
     endTime = time.time()
     spendTime = int(endTime - startTime)
     logFile = open(logPath, "w")
     logFile.write("Task ID:\n")
-    logFile.write(str(taskId) + "\n")
+    logFile.write(str(taskID) + "\n")
     logFile.write("Failed Count:\n")
     logFile.write(str(len(indexReadFailList)) + "\n")
     logFile.write("Failed List:\n")
@@ -472,32 +494,90 @@ def indexAnalyLog(indexReadFailList):
 
 # 获取索引页
 def test1():
-    # 创建工作目录
+    # 记录时间 创建工作目录
+    startTime = time.time()
+    taskID = int(startTime)
+    taskPath = os.path.join(os.getcwd(), str(taskID))
+    htmlPath = os.path.join(taskPath, "html")
     try:
         os.mkdir(taskPath)
         os.mkdir(htmlPath)
     except Exception as e:
-        pass
-    # pageList = list(range(1, 101))
-    # threadNum = 10
-    pageList, threadNum = getParams()
-    # pprint(pageList)
-    # print(threadNum)
-    multiDownIndex(pageList, threadNum)
+        print(e)
+    # 参数设置
+    pageList = []
+    proNum = 1
+    # 开启多进程
+    proLock = multiprocessing.Lock()
+    with multiprocessing.Manager() as proManager:
+        indexDownFailList = proManager.list([])
+        multiDownIndex(pageList, proNum, indexDownFailList,
+                       proLock, startTime, taskID, taskPath)
     print("Done!")
 
 
 # 解析索引页
 def test2():
-    # 开启多进程
-    htmlFileFolder = r"E:\EOP\1611245719\html"
+    # 记录时间 创建工作目录
+    startTime = time.time()
+    taskID = int(startTime)
+    taskPath = os.path.join(os.getcwd(), str(taskID))
+    try:
+        os.mkdir(taskPath)
+    except Exception as e:
+        print(e)
+    # 参数设置
+    htmlFileFolder = ""
     proNum = 8
+    # 开启多进程
     print("正在处理...")
     with multiprocessing.Manager() as proManager:
         indexReadFailList = proManager.list([])
-        multiAnalyzeIndex(htmlFileFolder, proNum, indexReadFailList)
+        multiAnalyzeIndex(htmlFileFolder, proNum,
+                          indexReadFailList, startTime, taskID, taskPath)
     print("Done!")
 
 
+# 主程序
+def mainTask():
+    # 记录时间 创建工作目录
+    startTime = time.time()
+    taskID = int(startTime)
+    taskPath = os.path.join(os.getcwd(), str(taskID))
+    try:
+        os.mkdir(taskPath)
+    except Exception as e:
+        print(e)
+    # 获取任务编号
+    taskChoice = int(
+        input("Which Task? 0 for indexDownload, 1 for indexAnalyze :\n"))
+    if taskChoice != 1 and taskChoice != 0:
+        print("Bye!")
+        exit()
+    # 根具任务编号执行相应的程序
+    if taskChoice == 0:
+        # 索引页下载任务
+        # 获取参数
+        pageList, proNum = getParams(taskChoice)
+        # 开启多进程
+        proLock = multiprocessing.Lock()
+        with multiprocessing.Manager() as proManager:
+            indexDownFailList = proManager.list([])
+            multiDownIndex(pageList, proNum, indexDownFailList,
+                           proLock, startTime, taskID, taskPath)
+        print("Done!")
+    elif taskChoice == 1:
+        # 现有索引页分析任务
+        # 获取参数
+        htmlFileFolder, proNum = getParams(taskChoice)
+        # 开启多进程
+        print("正在处理...")
+        with multiprocessing.Manager() as proManager:
+            indexReadFailList = proManager.list([])
+            multiAnalyzeIndex(htmlFileFolder, proNum,
+                              indexReadFailList, startTime, taskID, taskPath)
+        print("Done!")
+
+
 if __name__ == "__main__":
-    test2()
+    mainTask()
